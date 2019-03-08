@@ -8,13 +8,13 @@ import os.path
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
-accOpts=['-h', '--help', '-p',\
+accOpts=['-h', '--help','--header', '-p',\
          '-i', '-b', '--side', '--noLog',\
          '--color']
 
 def createExtraOptionsDict(accOpts):
     extrOptDict={}
-    for e in accOpts[3:]:
+    for e in accOpts[4:]:
         extrOptDict[e]=""
 
     extrOptDict['-i']="""Needs one integer as argument
@@ -27,6 +27,22 @@ def createExtraOptionsDict(accOpts):
     return extrOptDict
 
 extrOptDict=createExtraOptionsDict(accOpts)
+
+def handleHeader(hdu_list,myOptDict,argv):
+    myHeaderStr=argv[myOptDict['--header'][0]]
+    print("Header is %s" %(myHeaderStr))
+    if not myHeaderStr.isdigit():
+        print("error: header number neends to be a positive integer")
+        return
+
+    hIdx=int(myHeaderStr)
+    checkBool,totNum=checkIfValidFitsIdx(hdu_list,hIdx)
+    if not checkBool:
+        print("error:  0 <= %s < %d should be satisfied" %(hIdx,totNum))
+        return
+
+    for e in hdu_list[hIdx].header:
+        print("%s\t\t\t%s" %(e, hdu_list[hIdx].header[e]))
 
 def getMyOptDict(myArgs):
     myOptDict={}
@@ -95,6 +111,7 @@ def handleSubCases(hdu_list, myOptDict, argv):
 def printHelp(argv):
     print("%s [-h|--help]\n" %(basename(argv[0])))
     print("%s file.fits #displays fits file info\n" %(basename(argv[0])))
+    print("%s --header number file.fits #displays fits header info\n" %(basename(argv[0])))
     print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     print("extraOptions:\n")
     for e in extrOptDict:
@@ -125,6 +142,7 @@ def plotHistoData(hdu_list,iNum=1,bining=300,\
         plt.yscale('log', nonposy='clip')
     plt.show()
 
+#deprecated
 def openfits(b):
     hdu_list = fits.open(b)
     hdu_list.info()
@@ -172,6 +190,13 @@ def checkIfValidFitsImgNum(hdu_list,iNum):
         return True,totNum
     return False,totNum
 
+def checkIfValidFitsIdx(hdu_list,iNum):
+    totNum=getNumOfFitsImgs(hdu_list)
+    if 0<= iNum < totNum:
+        return True,totNum
+    return False,totNum
+
+
 def main(argv):
     if len(argv) < 2:
         print("usage: "\
@@ -204,7 +229,10 @@ def main(argv):
 
     # openfits(myFitsF)
     if '-p' not in myOptDict:
-        hdu_list.info()
+        if '--header' not in myOptDict:
+            hdu_list.info()
+        else:
+            handleHeader(hdu_list,myOptDict,argv)
     else:
         handleSubCases(hdu_list, myOptDict, argv)
 
