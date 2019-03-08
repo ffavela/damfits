@@ -22,7 +22,7 @@ def createExtraOptionsDict(accOpts):
     extrOptDict['-b']="""Needs one integer for defining the bining"""
     extrOptDict['--side']="""Needs one argument specifying the left or right
 \t\tside of the image"""
-    extrOptDict['--noLog']="""A simple flag for turning of the ylog scale"""
+    extrOptDict['--noLog']="""A simple flag for turning off the ylog scale"""
     extrOptDict['--color']="""Needs one argument defining the color"""
     return extrOptDict
 
