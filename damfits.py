@@ -4,17 +4,21 @@ import sys
 import os
 from os.path import basename #For printing nicely argv[0]
 import os.path
+import numpy as np
 
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
-accOpts=['-h', '--help','--header', '-p',\
+#After the -p option are the extra options, just be careful with that
+#-i b4 -p, it's useful outside too
+accOpts=['-h', '--help','--header',\
+         '-r', '--rectangle', '-i', '-p',\
          '-i', '-b', '--side', '--noLog',\
          '--color']
 
 def createExtraOptionsDict(accOpts):
     extrOptDict={}
-    for e in accOpts[4:]:
+    for e in accOpts[accOpts.index('-p')+1:]:
         extrOptDict[e]=""
 
     extrOptDict['-i']="""Needs one integer as argument
@@ -60,6 +64,18 @@ def getMyOptDict(myArgs):
 
     return myOptDict
 
+def handleMinusI(iNumStr,hdu_list):
+    if not iNumStr.isdigit():
+        print("error: %s should be a positive integer")
+        return False
+    iNum=int(iNumStr)
+    checkBool,totNum=checkIfValidFitsImgNum(hdu_list,iNum)
+    if not checkBool:
+        print("error:  1 <= %s < %d should be satisfied" %(iNum,totNum))
+        return False
+    return True
+
+
 def handleSubCases(hdu_list, myOptDict, argv):
     iNum=1 #Which image to plot
     bining=300 #default bining
@@ -91,17 +107,13 @@ def handleSubCases(hdu_list, myOptDict, argv):
     if "--noLog" in myOptDict:
         logB=False
 
+    iNum=1
     if "-i" in myOptDict:
         #The image number
         iNumStr=argv[myOptDict["-i"][0]]
-        if not iNumStr.isdigit():
-            print("error: %s should be a positive integer")
-        iNum=int(iNumStr)
-        checkBool,totNum=checkIfValidFitsImgNum(hdu_list,iNum)
-        if not checkBool:
-            print("error:  1 <= %s < %d should be satisfied" %(iNum,totNum))
+        if not handleMinusI(iNumStr,hdu_list):
             return False
-
+        iNum=int(iNumStr)
         if '--color' in myOptDict:
             color=argv[myOptDict['--color'][0]]
 
@@ -112,6 +124,7 @@ def printHelp(argv):
     print("%s [-h|--help]\n" %(basename(argv[0])))
     print("%s file.fits #displays fits file info\n" %(basename(argv[0])))
     print("%s --header number file.fits #displays fits header info\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] file.fits #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
     print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     print("extraOptions:\n")
     for e in extrOptDict:
@@ -197,6 +210,28 @@ def checkIfValidFitsIdx(hdu_list,iNum):
     return False,totNum
 
 
+def checkIfIntArgs(simpleList,argv):
+    """Checks if the elements in argv, with indeces in simpleList, are all
+integers. Useful function for the rectangle option.
+
+    """
+    for e in simpleList:
+        if not argv[e].isdigit():
+            return False
+    return True
+
+def checkIfValidRect(myRectVals):
+    """Checks if the ranges of the rectangle are valid (work in
+progress)."""
+    if any(t < 0 for t in myRectVals):
+        return False
+    xMin,xMax,yMin,yMax=myRectVals
+    if xMin > xMax:
+        return False
+    if yMin > yMax:
+        return False
+    return True
+
 def main(argv):
     if len(argv) < 2:
         print("usage: "\
@@ -220,12 +255,48 @@ def main(argv):
         print("error: "+myFitsF+" is not a file")
         return 2
     # openfits("d44_snolab_Int-200_Exp-100000_4283.fits")
-
+    fitsFileIdx=argv.index(argv[-1])
     try:
         hdu_list = fits.open(myFitsF)
     except:
         print("error: "+myFitsF+" is not a valid fits file.")
         return 3
+
+    #Handling the rectangle option
+    if '-r' in myOptDict or '--rectangle' in myOptDict:
+        if '--rectangle' in myOptDict:
+            myRectList=myOptDict['--rectangle']
+        else:
+            myRectList=myOptDict['-r']
+        rectNum=len(myRectList)
+        if fitsFileIdx in myRectList:
+            rectNum-=1
+        if rectNum != 4:
+            print("error: rectangle option needs exactly 4 arguments")
+            return 666
+        myRectList=myRectList[0:4]
+        if not checkIfIntArgs(myRectList,argv):
+            print("error: rectangle arguments must be integers")
+            return 667
+        #Getting the integers from the command line
+        myRectVals=[int(argv[e]) for e in myRectList]
+        xMin,xMax,yMin,yMax=myRectVals
+        if not checkIfValidRect(myRectVals):
+            print("error: invalid rectangle range")
+            return 668
+        iNum=1
+        if '-i' in myOptDict:
+            iNumStr=argv[myOptDict["-i"][0]]
+            if not handleMinusI(iNumStr,hdu_list):
+                return 990
+            iNum=int(iNumStr)
+        imageStuff=hdu_list[iNum].data
+        croppedArr=imageStuff[yMin:yMax,xMin:xMax]
+        flatArr=croppedArr.flatten()
+        myAverage=np.average(flatArr)
+        print(myAverage)
+
+        return 34
 
     # openfits(myFitsF)
     if '-p' not in myOptDict:
