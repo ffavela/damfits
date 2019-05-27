@@ -12,7 +12,8 @@ from astropy.io import fits
 #After the -p option are the extra options, just be careful with that
 #-i b4 -p, it's useful outside too
 accOpts=['-h', '--help','--header',\
-         '-r', '--rectangle', '-i', '-p',\
+         '-r', '--rectangle',\
+         '--xPlot', '-i', '-p',\
          '-i', '-b', '--side', '--noLog',\
          '--color']
 
@@ -124,7 +125,7 @@ def printHelp(argv):
     print("%s [-h|--help]\n" %(basename(argv[0])))
     print("%s file.fits #displays fits file info\n" %(basename(argv[0])))
     print("%s --header number file.fits #displays fits header info\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] file.fits #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot] file.fits #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
     print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     print("extraOptions:\n")
     for e in extrOptDict:
@@ -292,9 +293,15 @@ def main(argv):
             iNum=int(iNumStr)
         imageStuff=hdu_list[iNum].data
         croppedArr=imageStuff[yMin:yMax,xMin:xMax]
-        flatArr=croppedArr.flatten()
-        myAverage=np.average(flatArr)
-        print(myAverage)
+        if '--xPlot' in myOptDict:
+            xSum=croppedArr.sum(axis=0)
+            xPos=np.arange(xMin,xMax)
+            plt.plot(xPos,xSum)
+            plt.show()
+        else:
+            flatArr=croppedArr.flatten()
+            myAverage=np.average(flatArr)
+            print(myAverage)
 
         return 34
 
