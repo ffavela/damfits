@@ -296,6 +296,9 @@ def main(argv):
         if '--xPlot' in myOptDict:
             xSum=croppedArr.sum(axis=0)
             xPos=np.arange(xMin,xMax)
+            plt.xlabel("x pixel")
+            plt.ylabel("Sum of y vals")
+            plt.title("Cummulative vals of y vs x")
             plt.plot(xPos,xSum)
             plt.show()
         else:
