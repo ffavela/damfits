@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 import sys
 import os
 from os.path import basename #For printing nicely argv[0]
@@ -13,7 +12,8 @@ from astropy.io import fits
 #-i b4 -p, it's useful outside too
 accOpts=['-h', '--help','--header',\
          '-r', '--rectangle',\
-         '--xPlot', '-i', '-p',\
+         '--xPlot','--xAve','--yAve',\
+         '--dump','-i', '-p',\
          '-i', '-b', '--side', '--noLog',\
          '--color']
 
@@ -51,14 +51,19 @@ def handleHeader(hdu_list,myOptDict,argv):
 
 def getMyOptDict(myArgs):
     myOptDict={}
+    myOptDict['fitsFiles']=[]
 
     tmpOpt=''
     for i in range(len(myArgs)):
         e=myArgs[i]
-        if e[0] == '-':
+        if e[0] == '-': #only changes if new option is found
             myOptDict[e]=[]
             tmpOpt=e
             continue #Just skipping the option
+
+        if e.endswith('.fits'):
+            myOptDict['fitsFiles'].append(i)
+            #leaving the tmpOpt conditional after this one for now
 
         if tmpOpt != '':
             myOptDict[tmpOpt].append(i)
@@ -187,11 +192,16 @@ def openfits(b):
     plt.yscale('log', nonposy='clip')
     plt.show()
 
-
 def checkIfValidOpts(myOptDict, accOpts):
     for e in myOptDict:
+        if e == 'fitsFiles':
+            #just ommiting this one, it's not really an option
+            continue
         if e not in accOpts:
             print("error: %s is not a valid option" %(e))
+            return False
+        if '--xAve' in myOptDict and '--yAve' in myOptDict:
+            print("error: --xAve and --yAve cannot be used simultaneously")
             return False
     return True
 
@@ -210,7 +220,6 @@ def checkIfValidFitsIdx(hdu_list,iNum):
         return True,totNum
     return False,totNum
 
-
 def checkIfIntArgs(simpleList,argv):
     """Checks if the elements in argv, with indeces in simpleList, are all
 integers. Useful function for the rectangle option.
@@ -220,6 +229,72 @@ integers. Useful function for the rectangle option.
         if not argv[e].isdigit():
             return False
     return True
+
+def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
+    if '--rectangle' in myOptDict:
+        myRectList=myOptDict['--rectangle']
+    else:
+        myRectList=myOptDict['-r']
+    rectNum=len(myRectList)
+    if fitsFileIdx in myRectList:
+        rectNum-=1
+    if rectNum != 4:
+        print("error: rectangle option needs exactly 4 arguments")
+        return 666
+    myRectList=myRectList[0:4]
+    if not checkIfIntArgs(myRectList,argv):
+        print("error: rectangle arguments must be integers")
+        return 667
+    #Getting the integers from the command line
+    myRectVals=[int(argv[e]) for e in myRectList]
+    xMin,xMax,yMin,yMax=myRectVals
+    if not checkIfValidRect(myRectVals):
+        print("error: invalid rectangle range")
+        return 668
+    iNum=1
+    if '-i' in myOptDict:
+        iNumStr=argv[myOptDict["-i"][0]]
+        if not handleMinusI(iNumStr,hdu_list):
+            return 990
+        iNum=int(iNumStr)
+    imageStuff=hdu_list[iNum].data
+    croppedArr=imageStuff[yMin:yMax,xMin:xMax]
+    if '--xPlot' in myOptDict:
+        xSum=croppedArr.sum(axis=0)
+        xPos=np.arange(xMin,xMax)
+        plt.xlabel("x pixel")
+        plt.ylabel("Sum of y vals")
+        plt.title("Cummulative vals of y vs x")
+        plt.plot(xPos,xSum)
+    elif '--xAve' in myOptDict or '--yAve' in myOptDict:
+        return croppedArr
+    else:
+        flatArr=croppedArr.flatten()
+        myAverage=np.average(flatArr)
+        print(myAverage)
+
+    return 34
+
+def getAverageList(list4NumpyStuff,myKey,myOptDict):
+    #Getting a zeros numpy array with the same shape
+    mySum=np.zeros(list4NumpyStuff[0].shape)
+    #Getting a sumed array from the info in the other fits files.
+    for i in range(len(list4NumpyStuff)):
+        mySum+=list4NumpyStuff[i]
+    myAxis=1 #'--yAve'
+    if myKey=='--xAve':
+        myAxis=0
+    numberOfEntries=len(list4NumpyStuff)
+    numberOfRows=len(list4NumpyStuff[0])
+    numberOfCols=len(list4NumpyStuff[0][0])
+    numOfEle=numberOfRows
+    if myAxis==1:
+        numOfEle=numberOfCols
+    cumSum=mySum.sum(axis=myAxis)
+
+    myAverage=[float(cumS)/(numberOfEntries*numOfEle)\
+               for cumS in cumSum]
+    return myAverage
 
 def checkIfValidRect(myRectVals):
     """Checks if the ranges of the rectangle are valid (work in
@@ -248,74 +323,85 @@ def main(argv):
         printHelp(argv)
         return 5
 
-    # for e in myOptDict:
-    #     print(e, myOptDict[e])
+    fitsFIdxs=myOptDict['fitsFiles']
+    if len(fitsFIdxs) == 0:
+        print("error: at least 1 fits file has to be provided")
+        return 6
 
-    myFitsF=argv[-1]
-    if not os.path.isfile(myFitsF):
-        print("error: "+myFitsF+" is not a file")
-        return 2
-    # openfits("d44_snolab_Int-200_Exp-100000_4283.fits")
-    fitsFileIdx=argv.index(argv[-1])
-    try:
-        hdu_list = fits.open(myFitsF)
-    except:
-        print("error: "+myFitsF+" is not a valid fits file.")
-        return 3
+    list4NumpyStuff=[]#for getting the numpy stuff in case they exist.
 
-    #Handling the rectangle option
-    if '-r' in myOptDict or '--rectangle' in myOptDict:
-        if '--rectangle' in myOptDict:
-            myRectList=myOptDict['--rectangle']
+    #Looping through all the fits file indeces given though the
+    #command line
+    for fitsIdx in fitsFIdxs:
+        # myFitsF=argv[fitsFIdxs[-1]]
+        myFitsF=argv[fitsIdx]
+        if not os.path.isfile(myFitsF):
+            print("error: "+myFitsF+" is not a file.")
+            print("Maybe you are in the wrong directory.")
+            return 2
+        # openfits("d44_snolab_Int-200_Exp-100000_4283.fits")
+        # fitsFileIdx=argv.index(argv[-1])
+        fitsFileIdx=fitsFIdxs[-1]
+        try:
+            hdu_list = fits.open(myFitsF)
+        except:
+            print("error: "+myFitsF+" is not a valid fits file.")
+            return 3
+
+        #Handling the rectangle option
+        if '-r' in myOptDict or '--rectangle' in myOptDict:
+            #simply making main return the same thing as the function
+            if '-r' in myOptDict:
+                #making sure '--rectangle' exists (for simplicity)
+                myOptDict['--rectangle']=myOptDict['-r']
+            exitVal=rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx)
+            if type(exitVal).__module__ == np.__name__:
+                list4NumpyStuff.append(exitVal)
+                #Assuming for now that the (x|y)Ave option was given
+            elif exitVal >= 600:
+                return 666
+            if fitsIdx == fitsFIdxs[-1]:
+                #No error is shown if we are not plotting
+                plt.show()
+            continue
+
+        # openfits(myFitsF)
+        if '-p' not in myOptDict:
+            if '--header' not in myOptDict:
+                hdu_list.info()
+            else:
+                handleHeader(hdu_list,myOptDict,argv)
         else:
-            myRectList=myOptDict['-r']
-        rectNum=len(myRectList)
-        if fitsFileIdx in myRectList:
-            rectNum-=1
-        if rectNum != 4:
-            print("error: rectangle option needs exactly 4 arguments")
-            return 666
-        myRectList=myRectList[0:4]
-        if not checkIfIntArgs(myRectList,argv):
-            print("error: rectangle arguments must be integers")
-            return 667
-        #Getting the integers from the command line
-        myRectVals=[int(argv[e]) for e in myRectList]
-        xMin,xMax,yMin,yMax=myRectVals
-        if not checkIfValidRect(myRectVals):
-            print("error: invalid rectangle range")
-            return 668
-        iNum=1
-        if '-i' in myOptDict:
-            iNumStr=argv[myOptDict["-i"][0]]
-            if not handleMinusI(iNumStr,hdu_list):
-                return 990
-            iNum=int(iNumStr)
-        imageStuff=hdu_list[iNum].data
-        croppedArr=imageStuff[yMin:yMax,xMin:xMax]
-        if '--xPlot' in myOptDict:
-            xSum=croppedArr.sum(axis=0)
-            xPos=np.arange(xMin,xMax)
-            plt.xlabel("x pixel")
-            plt.ylabel("Sum of y vals")
-            plt.title("Cummulative vals of y vs x")
-            plt.plot(xPos,xSum)
+            handleSubCases(hdu_list, myOptDict, argv)
+
+    #This is done outside the for (easier to manipulate here)
+    if '--xAve' in myOptDict or '--yAve' in myOptDict:
+        myKey='--xAve'
+        minIdx,maxIdx=myOptDict['--rectangle'][0:2]
+        myXLabel='x pixel'
+        myYLabel='average value over y'
+        dumpXLab='xPixel'
+        dumpYLab='yAverage'
+        if '--yAve' in myOptDict:
+            myKey='--yAve'
+            minIdx,maxIdx=myOptDict['--rectangle'][2:4]
+            myXLabel='y pixel'
+            myYLabel='average value over x'
+            dumpXLab='yPixel'
+            dumpYLab='xAverage'
+
+        minVal,maxVal=int(argv[minIdx]),int(argv[maxIdx])
+        aPos=np.arange(minVal,maxVal)
+        myAverageL=getAverageList(list4NumpyStuff, myKey, myOptDict)
+        if '--dump' in myOptDict:
+            print("#%s\t%s" %(dumpXLab,dumpYLab))
+            for xVal,yVal in zip(aPos,myAverageL):
+                print("%d\t%0.3f" %(xVal,yVal))
+        else:
+            plt.xlabel(myXLabel)
+            plt.ylabel(myYLabel)
+            plt.plot(aPos,myAverageL)
             plt.show()
-        else:
-            flatArr=croppedArr.flatten()
-            myAverage=np.average(flatArr)
-            print(myAverage)
-
-        return 34
-
-    # openfits(myFitsF)
-    if '-p' not in myOptDict:
-        if '--header' not in myOptDict:
-            hdu_list.info()
-        else:
-            handleHeader(hdu_list,myOptDict,argv)
-    else:
-        handleSubCases(hdu_list, myOptDict, argv)
 
 if __name__ == "__main__":
    main(sys.argv)
