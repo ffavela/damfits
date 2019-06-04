@@ -128,9 +128,10 @@ def handleSubCases(hdu_list, myOptDict, argv):
 
 def printHelp(argv):
     print("%s [-h|--help]\n" %(basename(argv[0])))
-    print("%s file.fits #displays fits file info\n" %(basename(argv[0])))
-    print("%s --header number file.fits #displays fits header info\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot] file.fits #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
+    print("%s file0.fits [file1.fits ...] #displays fits file info\n" %(basename(argv[0])))
+    print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--dump]file0.fits [file1.fits ...] #plots the averages along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
     print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     print("extraOptions:\n")
     for e in extrOptDict:
