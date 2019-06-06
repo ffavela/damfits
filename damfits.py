@@ -131,7 +131,7 @@ def printHelp(argv):
     print("%s file0.fits [file1.fits ...] #displays fits file info\n" %(basename(argv[0])))
     print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--dump]file0.fits [file1.fits ...] #plots the averages along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--dump] file0.fits [file1.fits ...] #plots the averages pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
     print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     print("extraOptions:\n")
     for e in extrOptDict:
@@ -380,14 +380,14 @@ def main(argv):
         myKey='--xAve'
         minIdx,maxIdx=myOptDict['--rectangle'][0:2]
         myXLabel='x pixel'
-        myYLabel='average value over y'
+        myYLabel='average y value per pixel'
         dumpXLab='xPixel'
         dumpYLab='yAverage'
         if '--yAve' in myOptDict:
             myKey='--yAve'
             minIdx,maxIdx=myOptDict['--rectangle'][2:4]
             myXLabel='y pixel'
-            myYLabel='average value over x'
+            myYLabel='average x value per pixel'
             dumpXLab='yPixel'
             dumpYLab='xAverage'
 
