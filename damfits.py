@@ -401,7 +401,7 @@ def main(argv):
         else:
             plt.xlabel(myXLabel)
             plt.ylabel(myYLabel)
-            plt.plot(aPos,myAverageL)
+            plt.plot(aPos,myAverageL, marker='^')
             plt.show()
 
 if __name__ == "__main__":
