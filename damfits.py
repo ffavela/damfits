@@ -12,6 +12,7 @@ from astropy.io import fits
 #-i b4 -p, it's useful outside too
 accOpts=['-h', '--help','--header',\
          '-r', '--rectangle',\
+         '--pValue',\
          '--xPlot','--xAve','--yAve',\
          '--dump','-i', '-p',\
          '-i', '-b', '--side', '--noLog',\
@@ -132,6 +133,7 @@ def printHelp(argv):
     print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--dump] file0.fits [file1.fits ...] #plots the averages pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
+    print("%s --pVal xVal yVal [-i iNum] file0.fits [file1.fits ...] #prints the pixel value\n" %(basename(argv[0])))
     print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     print("extraOptions:\n")
     for e in extrOptDict:
@@ -223,12 +225,15 @@ def checkIfValidFitsIdx(hdu_list,iNum):
 
 def checkIfIntArgs(simpleList,argv):
     """Checks if the elements in argv, with indeces in simpleList, are all
-integers. Useful function for the rectangle option.
+integers positive. Useful function for the rectangle option and others.
 
     """
     for e in simpleList:
         if not argv[e].isdigit():
             return False
+        if int(argv[e]) == 0:
+            return False
+
     return True
 
 def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
@@ -259,7 +264,7 @@ def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
             return 990
         iNum=int(iNumStr)
     imageStuff=hdu_list[iNum].data
-    croppedArr=imageStuff[yMin:yMax,xMin:xMax]
+    croppedArr=imageStuff[yMin-1:yMax-1,xMin-1:xMax-1]
     if '--xPlot' in myOptDict:
         xSum=croppedArr.sum(axis=0)
         xPos=np.arange(xMin,xMax)
@@ -281,7 +286,11 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict):
     mySum=np.zeros(list4NumpyStuff[0].shape)
     #Getting a sumed array from the info in the other fits files.
     for i in range(len(list4NumpyStuff)):
-        mySum+=list4NumpyStuff[i]
+        try:
+            mySum+=list4NumpyStuff[i]
+        except:
+            print("error: the pixel sizes don't appear to be the same in all files.")
+            sys.exit()
     myAxis=1 #'--yAve'
     if myKey=='--xAve':
         myAxis=0
@@ -308,6 +317,47 @@ progress)."""
     if yMin > yMax:
         return False
     return True
+
+def checkIfValidPixel(argv,hdu_list,myOptDict):
+    """Still missing checking if pixel is inside the image"""
+    if '--pValue' not in myOptDict:
+        print("Inside new check function")
+        return False
+
+    theLen=len(myOptDict['--pValue'])
+    if theLen<2:
+        print("error: --pValue needs 2 arguments")
+        return False
+
+    myRectList=myOptDict['--pValue'][0:2]
+
+    if not checkIfIntArgs(myRectList,argv):
+        print("error: pValue arguments must be positive integers")
+        return False
+
+
+
+    return True
+
+def handlePValue(argv,hdu_list,myOptDict,fitsFileIdx):
+    pBoolVal=checkIfValidPixel(argv,hdu_list,myOptDict)
+    if not pBoolVal:
+        return None
+
+    iNum=1
+    if '-i' in myOptDict:
+        iNumStr=argv[myOptDict["-i"][0]]
+        if not handleMinusI(iNumStr,hdu_list):
+            return None
+        iNum=int(iNumStr)
+
+    myRectList=myOptDict['--pValue']
+    myXP,myYP=int(argv[myRectList[0]]),\
+        int(argv[myRectList[1]])
+
+    imageStuff=hdu_list[iNum].data
+    pValue=imageStuff[myYP-1,myXP-1]
+    return pValue
 
 def main(argv):
     if len(argv) < 2:
@@ -366,6 +416,13 @@ def main(argv):
                 plt.show()
             continue
 
+        if '--pValue' in myOptDict:
+            pValue=handlePValue(argv,hdu_list,myOptDict,fitsFileIdx)
+            if pValue == None:
+                return 1
+            print(pValue)
+            continue
+
         # openfits(myFitsF)
         if '-p' not in myOptDict:
             if '--header' not in myOptDict:
@@ -403,6 +460,7 @@ def main(argv):
             plt.ylabel(myYLabel)
             plt.plot(aPos,myAverageL, marker='^')
             plt.show()
+        return 0
 
 if __name__ == "__main__":
    main(sys.argv)
