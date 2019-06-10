@@ -18,6 +18,37 @@ accOpts=['-h', '--help','--header',\
          '-i', '-b', '--side', '--noLog',\
          '--color']
 
+#A consistency dictionary
+cDict={'--help':[], '--header':[],\
+       '--rectangle': ['-i', '--xPlot',\
+                       '--dump','--xAve','--yAve'],\
+       '--xAve': ['-r','--rectangle','-i', '--dump'],\
+       '--pVal': ['-i'],\
+       '-p': ['-i','-d','--side','--noLog','--color']}
+
+#For the equivalent expressions
+cDict['-r']=cDict['--rectangle']
+cDict['--yAve']=cDict['--xAve']
+#Making all consistent with themselves and fitsFiles
+for cVal in cDict:
+    cDict[cVal].append(cVal)
+    cDict[cVal].append('fitsFiles')
+
+def checkOptConsistency(myOptDict):
+    """Checks if the options given from the command line can be used
+together"""
+    theOptL=[myOpt for myOpt in myOptDict]
+    for myOptE in theOptL:
+        if myOptE in cDict:
+            accOptsList=cDict[myOptE]
+            list2See=[x for x in theOptL if x not in accOptsList]
+            if len(list2See) != 0:
+                print("error: %s is inconsistent with" %(myOptE))
+                for l2c in list2See:
+                    print(l2c)
+                return False
+    return True
+
 def createExtraOptionsDict(accOpts):
     extrOptDict={}
     for e in accOpts[accOpts.index('-p')+1:]:
@@ -378,6 +409,10 @@ def main(argv):
     if len(fitsFIdxs) == 0:
         print("error: at least 1 fits file has to be provided")
         return 6
+
+    if not checkOptConsistency(myOptDict):
+        print("Check help for proper syntax")
+        return 8
 
     list4NumpyStuff=[]#for getting the numpy stuff in case they exist.
 
