@@ -164,7 +164,7 @@ def printHelp(argv):
     print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--dump] file0.fits [file1.fits ...] #plots the averages pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
-    print("%s --pVal xVal yVal [-i iNum] file0.fits [file1.fits ...] #prints the pixel value\n" %(basename(argv[0])))
+    print("%s --pValue xVal yVal [-i iNum] file0.fits [file1.fits ...] #prints the pixel value\n" %(basename(argv[0])))
     print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     print("extraOptions:\n")
     for e in extrOptDict:
@@ -365,8 +365,6 @@ def checkIfValidPixel(argv,hdu_list,myOptDict):
     if not checkIfIntArgs(myRectList,argv):
         print("error: pValue arguments must be positive integers")
         return False
-
-
 
     return True
 
