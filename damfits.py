@@ -410,6 +410,14 @@ def main(argv):
         print("error: at least 1 fits file has to be provided")
         return 6
 
+    if '-i' in myOptDict:
+        ccdNumLIdx=myOptDict['-i']
+        if len(ccdNumLIdx) < 1:
+            print("error: -i option cannot be left empty")
+            return 660
+        if not argv[ccdNumLIdx[0]].isdigit():
+            print("error: -i option needs an integer")
+            return 662
     if not checkOptConsistency(myOptDict):
         print("Check help for proper syntax")
         return 8
