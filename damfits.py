@@ -606,6 +606,9 @@ def main(argv):
                 plt.plot(uV2,gauss(uV2,*popt2),label='fit2')
                 A2,mean2,sigma2=popt2
                 print("r2\t%0.2f\t%0.2f\t%0.2f" %(A2,mean2,sigma2))
+                print("r1-r2\t%0.2f\t%0.2f\t%0.2f" %(A-A2,\
+                                                     mean-mean2,\
+                                                     sigma-sigma2))
 
         if not '--noPlot' in myOptDict:
             plt.show()
