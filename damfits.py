@@ -16,7 +16,8 @@ accOpts=['-h','--help','--header',\
          '--pValue','--gFit','--testing',\
          '--noPlot','--noLog',\
          '--xPlot','--xAve','--yAve',\
-         '--dump','-i','--pDist',\
+         '--dump','--upperB',\
+         '-i','--pDist',\
          '--r2','--gFit','-p',\
          '-i', '-b','--side','--noLog',\
          '--color']
@@ -26,8 +27,9 @@ cDict={'--help':[], '--header':[],\
        '--rectangle': ['-i', '--xPlot',\
                        '--dump','--xAve','--yAve',\
                        '--pDist','--r2','--gFit',\
-                       '--noLog','--noPlot'],\
-       '--xAve': ['-r','--rectangle','-i', '--dump'],\
+                       '--noLog','--noPlot',\
+                       '--upperB'],\
+       '--xAve': ['-r','--rectangle','-i', '--dump','--upperB'],\
        '--pVal': ['-i'],\
        '-p': ['-i','-d','--side','--noLog','--color']}
 
@@ -313,6 +315,18 @@ def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
             return 990
         iNum=int(iNumStr)
     imageStuff=hdu_list[iNum].data
+    uppB=np.amax(imageStuff)
+    if '--upperB' in myOptDict:
+        if len(myOptDict["--upperB"]) < 1:
+            print("error: --upperB option needs an argument")
+            return 788
+        uppBStr=argv[myOptDict['--upperB'][0]]
+        if not uppBStr.isdigit():
+            print("error: --upperB needs a positive integer")
+            return 789
+        uppB=int(uppBStr)
+    myOptDict['uppBInt']=uppB
+
     croppedArr=imageStuff[yMin-1:yMax-1,xMin-1:xMax-1]
     if '--xPlot' in myOptDict:
         xSum=croppedArr.sum(axis=0)
@@ -346,32 +360,46 @@ def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
         flatArr=croppedArr.flatten()
         myAverage=np.average(flatArr)
         print(myAverage)
-
     return 34
 
 def getAverageList(list4NumpyStuff,myKey,myOptDict):
+    myAxis=1 #'--yAve'
+    dEAx=0
+    if myKey=='--xAve':
+        myAxis=0
+        dEAx=1
     #Getting a zeros numpy array with the same shape
     mySum=np.zeros(list4NumpyStuff[0].shape)
     #Getting a sumed array from the info in the other fits files.
+    uppBInt=myOptDict['uppBInt']
+    myMaskArr=[]
+    mySumDivEle=[]
+    divEle=None
     for i in range(len(list4NumpyStuff)):
+        myMaskArr.append(list4NumpyStuff[i]<=uppBInt)
         try:
-            mySum+=list4NumpyStuff[i]
+            mySum+=list4NumpyStuff[i]*myMaskArr[i]
         except:
             print("error: the pixel sizes don't appear to be the same in all files.")
             sys.exit()
-    myAxis=1 #'--yAve'
-    if myKey=='--xAve':
-        myAxis=0
+        if type(divEle).__module__ != np.__name__:
+            divEle=myMaskArr[i].sum(axis=myAxis)
+        else:
+            divEle+=myMaskArr[i].sum(axis=myAxis)
+
     numberOfEntries=len(list4NumpyStuff)
     numberOfRows=len(list4NumpyStuff[0])
     numberOfCols=len(list4NumpyStuff[0][0])
-    numOfEle=numberOfRows
-    if myAxis==1:
+
+    if myAxis==0:
+        numOfEle=numberOfRows
+    else:# myAxis==1
         numOfEle=numberOfCols
     cumSum=mySum.sum(axis=myAxis)
 
-    myAverage=[float(cumS)/(numberOfEntries*numOfEle)\
-               for cumS in cumSum]
+    myAverage=[float(cumS)/(divE)\
+               for divE,cumS in zip(divEle,cumSum)]
+
     return myAverage
 
 def checkIfValidRect(myRectVals):
