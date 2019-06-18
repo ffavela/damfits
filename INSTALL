@@ -1,8 +1,8 @@
 Prerequisites
 
-Make sure you have python3, matplotlib and astropy installed on your
-system. If you are using python 2 by default in your system then you
-may need to install specifically the libraries specifically for
+Make sure you have python3, scipy, matplotlib and astropy installed on
+your system. If you are using python 2 by default in your system then
+you may need to install specifically the libraries specifically for
 python3.
 
 To install;
