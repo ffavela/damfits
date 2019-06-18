@@ -4,24 +4,29 @@ import os
 from os.path import basename #For printing nicely argv[0]
 import os.path
 import numpy as np
+from scipy.optimize import curve_fit
 
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
 #After the -p option are the extra options, just be careful with that
 #-i b4 -p, it's useful outside too
-accOpts=['-h', '--help','--header',\
-         '-r', '--rectangle',\
-         '--pValue',\
+accOpts=['-h','--help','--header',\
+         '-r','--rectangle',\
+         '--pValue','--gFit','--testing',\
+         '--noPlot','--noLog',\
          '--xPlot','--xAve','--yAve',\
-         '--dump','-i', '-p',\
-         '-i', '-b', '--side', '--noLog',\
+         '--dump','-i','--pDist',\
+         '--r2','--gFit','-p',\
+         '-i', '-b','--side','--noLog',\
          '--color']
 
 #A consistency dictionary
 cDict={'--help':[], '--header':[],\
        '--rectangle': ['-i', '--xPlot',\
-                       '--dump','--xAve','--yAve'],\
+                       '--dump','--xAve','--yAve',\
+                       '--pDist','--r2','--gFit',\
+                       '--noLog','--noPlot'],\
        '--xAve': ['-r','--rectangle','-i', '--dump'],\
        '--pVal': ['-i'],\
        '-p': ['-i','-d','--side','--noLog','--color']}
@@ -64,6 +69,11 @@ def createExtraOptionsDict(accOpts):
     return extrOptDict
 
 extrOptDict=createExtraOptionsDict(accOpts)
+
+
+def gauss(x, *p):
+    A,mu,sigma = p
+    return A*np.exp(-(x-mu)**2/(2.*sigma**2))
 
 def handleHeader(hdu_list,myOptDict,argv):
     myHeaderStr=argv[myOptDict['--header'][0]]
@@ -164,12 +174,20 @@ def printHelp(argv):
     print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--dump] file0.fits [file1.fits ...] #plots the averages pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
+
     print("%s --pValue xVal yVal [-i iNum] file0.fits [file1.fits ...] #prints the pixel value\n" %(basename(argv[0])))
     print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     print("extraOptions:\n")
     for e in extrOptDict:
         print("\t%s:\t%s\n" %(e,extrOptDict[e]))
 
+def getFreqCount(myArray):
+    """Given a numpy array (can be n dimensional) it returns a unique
+array with frequency counts"""
+    myNewArr=myArray.flatten()#make it 1D array
+    uniqVals,freqCounts=np.unique(myNewArr,return_counts=True)
+    return uniqVals,freqCounts
 
 def myXFill(imageStuff,side):
     halfXVal=len(imageStuff[0])//2 #// is integer division
@@ -305,6 +323,25 @@ def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
         plt.plot(xPos,xSum)
     elif '--xAve' in myOptDict or '--yAve' in myOptDict:
         return croppedArr
+    elif '--pDist' in myOptDict:
+        if '--r2' in myOptDict:
+            myRectList2=myOptDict['--r2']
+            if len(myRectList2) < 4:
+                print("error: --r2 option needs 4 arguments")
+                return 4004
+            myRectList2=myRectList2[0:4]
+            if not checkIfIntArgs(myRectList2,argv):
+                print("error: rectangle arguments must be integers")
+                return 4005
+            myRectVals2=[int(argv[e]) for e in myRectList2]
+            if not checkIfValidRect(myRectVals2):
+                print("error: invalid --r2 range")
+                return 4006
+            xMin2,xMax2,yMin2,yMax2=myRectVals2
+            croppedArr2=imageStuff[yMin2-1:yMax2-1,xMin2-1:xMax2-1]
+            return [croppedArr,croppedArr2]
+        else:
+            return [croppedArr,[]]
     else:
         flatArr=croppedArr.flatten()
         myAverage=np.average(flatArr)
@@ -352,7 +389,6 @@ progress)."""
 def checkIfValidPixel(argv,hdu_list,myOptDict):
     """Still missing checking if pixel is inside the image"""
     if '--pValue' not in myOptDict:
-        print("Inside new check function")
         return False
 
     theLen=len(myOptDict['--pValue'])
@@ -408,6 +444,7 @@ def main(argv):
         print("error: at least 1 fits file has to be provided")
         return 6
 
+    iNum=1
     if '-i' in myOptDict:
         ccdNumLIdx=myOptDict['-i']
         if len(ccdNumLIdx) < 1:
@@ -416,12 +453,14 @@ def main(argv):
         if not argv[ccdNumLIdx[0]].isdigit():
             print("error: -i option needs an integer")
             return 662
+        iNum=int(argv[ccdNumLIdx[0]])
     if not checkOptConsistency(myOptDict):
         print("Check help for proper syntax")
         return 8
 
     list4NumpyStuff=[]#for getting the numpy stuff in case they exist.
-
+    croppedArrLists=[]
+    croppedArrLists2=[]
     #Looping through all the fits file indeces given though the
     #command line
     for fitsIdx in fitsFIdxs:
@@ -450,6 +489,13 @@ def main(argv):
             if type(exitVal).__module__ == np.__name__:
                 list4NumpyStuff.append(exitVal)
                 #Assuming for now that the (x|y)Ave option was given
+            elif type(exitVal) == type([]): #Horrible way
+                #This --pDist was probably used
+                newCroppedArr=exitVal[0]
+                croppedArrLists.append(newCroppedArr)
+                if '--r2' in myOptDict:
+                    newSubRectArr=exitVal[1]
+                    croppedArrLists2.append(newSubRectArr)
             elif exitVal >= 600:
                 return 666
             if fitsIdx == fitsFIdxs[-1]:
@@ -463,6 +509,24 @@ def main(argv):
                 return 1
             print(pValue)
             continue
+
+        if '--testing' in myOptDict:
+            print("Inside the testing part")
+            print("i value is", iNum)
+            # uV,fC=getFreqCount(hdu_list[iNum].data[44:80,5225:6225])
+            # maxIdx=uV.index(myMax)
+
+            uV,fC=getFreqCount(hdu_list[iNum].data[3:42,5225:6225])
+            myMaxIdx=np.argmax(fC)
+            myMaxV=uV[myMaxIdx]
+            myMaxC=fC[myMaxIdx]
+            print(myMaxV,myMaxC)
+            # print(uV)
+            # print(fC)
+            plt.plot(uV,fC)
+            plt.yscale('log',nonposy='clip')
+            plt.show()
+            sys.exit()
 
         # openfits(myFitsF)
         if '-p' not in myOptDict:
@@ -500,6 +564,50 @@ def main(argv):
             plt.xlabel(myXLabel)
             plt.ylabel(myYLabel)
             plt.plot(aPos,myAverageL, marker='^')
+            plt.show()
+        return 0
+
+    if '--pDist' in myOptDict:
+        newFlatLists=[e.flatten() for e in croppedArrLists]
+        flatFlatArr=newFlatLists[0]
+        for i in range(1,len(newFlatLists)):
+            flatFlatArr=np.append(flatFlatArr,newFlatLists[i])
+        uV,fC=getFreqCount(flatFlatArr)
+        # p0 my initial guess for the fitting coefficients (A, mu and sigma)
+        plt.xlabel("pixel value")
+        plt.ylabel("counts")
+
+        plt.plot(uV,fC)
+        if not '--noLog' in myOptDict:
+            plt.yscale('log', nonposy='clip')
+        if '--r2' in myOptDict:
+            newFlatLists2=[e.flatten() for e in croppedArrLists2]
+            flatFlatArr2=newFlatLists2[0]
+            for i in range(1,len(newFlatLists2)):
+                flatFlatArr2=np.append(flatFlatArr2,newFlatLists2[i])
+            uV2,fC2=getFreqCount(flatFlatArr2)
+            plt.plot(uV2,fC2)
+
+        if '--gFit' in myOptDict:
+            print("#rect\tA\tmean\tsigma")
+            myMaxIdx=np.argmax(fC)#locating the index
+            myMaxV=uV[myMaxIdx]#guess for the mean
+            myMaxC=fC[myMaxIdx]#guess for A
+            mySigma=100#find better estimate
+            popt,pcov = curve_fit(gauss,uV,fC,p0=[myMaxC, myMaxV, mySigma])
+            plt.plot(uV,gauss(uV,*popt),label='fit')
+            A,mean,sigma=popt
+            print("r1\t%0.2f\t%0.2f\t%0.2f" %(A,mean,sigma))
+            if '--r2' in myOptDict:
+                myMaxIdx2=np.argmax(fC2)
+                myMaxV2=uV2[myMaxIdx2]
+                myMaxC2=fC2[myMaxIdx2]
+                popt2,pcov2 = curve_fit(gauss,uV2,fC2,p0=[myMaxC2, myMaxV2, 100.])
+                plt.plot(uV2,gauss(uV2,*popt2),label='fit2')
+                A2,mean2,sigma2=popt2
+                print("r2\t%0.2f\t%0.2f\t%0.2f" %(A2,mean2,sigma2))
+
+        if not '--noPlot' in myOptDict:
             plt.show()
         return 0
 
