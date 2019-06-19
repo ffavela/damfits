@@ -175,14 +175,13 @@ def printHelp(argv):
     print("%s file0.fits [file1.fits ...] #displays fits file info\n" %(basename(argv[0])))
     print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--dump] file0.fits [file1.fits ...] #plots the averages pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
-
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--upperB upperBound] [--dump] file0.fits [file1.fits ...] #plots the average pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist [--gFit] [--noPlot] file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
     print("%s --pValue xVal yVal [-i iNum] file0.fits [file1.fits ...] #prints the pixel value\n" %(basename(argv[0])))
-    print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
-    print("extraOptions:\n")
-    for e in extrOptDict:
-        print("\t%s:\t%s\n" %(e,extrOptDict[e]))
+    # print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
+    # print("extraOptions:\n")
+    # for e in extrOptDict:
+    #     print("\t%s:\t%s\n" %(e,extrOptDict[e]))
 
 def getFreqCount(myArray):
     """Given a numpy array (can be n dimensional) it returns a unique
