@@ -16,7 +16,7 @@ accOpts=['-h','--help','--header',\
          '--pValue','--gFit','--testing',\
          '--noPlot','--noLog',\
          '--xPlot','--xAve','--yAve',\
-         '--dump','--upperB',\
+         '--dump','--upperB','--sOver',\
          '-i','--pDist',\
          '--r2','--gFit','-p',\
          '-i', '-b','--side','--noLog',\
@@ -28,8 +28,12 @@ cDict={'--help':[], '--header':[],\
                        '--dump','--xAve','--yAve',\
                        '--pDist','--r2','--gFit',\
                        '--noLog','--noPlot',\
-                       '--upperB'],\
-       '--xAve': ['-r','--rectangle','-i', '--dump','--upperB'],\
+                       '--upperB','--sOver'],\
+       '--xAve': ['-r','--rectangle','-i',\
+                  '--dump','--upperB','--sOver'],\
+       '--sOver': ['-r','--rectangle','-i',\
+                   '--dump','--upperB','--xAve',\
+                   '--yAve'],\
        '--pVal': ['-i'],\
        '-p': ['-i','-d','--side','--noLog','--color']}
 
@@ -40,6 +44,74 @@ cDict['--yAve']=cDict['--xAve']
 for cVal in cDict:
     cDict[cVal].append(cVal)
     cDict[cVal].append('fitsFiles')
+
+def getXYAveTag(myOptDict):
+    if '--xAve' in myOptDict:
+        return '--xAve'
+    if '--yAve' in myOptDict:
+        return '--yAve'
+    return None
+
+def getTagsL(rVals,hdu_list):
+    tagsL=[]
+    xVals,yVals=rVals[:2],rVals[2:]
+    # xLen=len(hdu_list[2].data[0])
+    # yLen=len(hdu_list[2].data)
+    imageDataShape=hdu_list[1].shape
+    yLen,xLen=imageDataShape
+    dSL=getDataSecList(hdu_list)
+    dSX,dSY=dSL
+    for xV in  xVals:
+        if xV < 1 or xV > xLen:
+            if 'xRangeError' not in tagsL:
+                tagsL.append('xRangeError')
+        if 1 <= xV <= dSX[0] or dSX[1] <= xV <= xLen:
+            if 'xOverscan' not in tagsL:
+                tagsL.append('xOverscan')
+        if dSX[0] <= xV <= dSX[1]:
+            if 'centerRegion' not in tagsL:
+                tagsL.append('xCenterRegion')
+        if xV <= xLen//2:
+            if 'Left' not in tagsL:
+                tagsL.append('Left')
+        if xV > xLen//2:
+            if 'Right' not in tagsL:
+                tagsL.append('Right')
+
+    for yV in yVals:
+        if yV < 1 or yV > yLen:
+            if 'yRangeError' not in tagsL:
+                tagsL.append('yRangeError')
+        if dSY[1] < yV :
+            if 'yOverscan' not in tagsL:
+                tagsL.append('yOverscan')
+        if dSY[0] <= yV <= dSY[1]:
+            if 'yCenterRegion' not in tagsL:
+                tagsL.append('yCenterRegion')
+
+    return tagsL
+
+def isOk2Go(tagsL,xTraCheck=None):
+    if 'xRangeError' in tagsL or 'yRangeError' in tagsL:
+        return False
+    if xTraCheck != None:
+        if 'Left' in tagsL and 'Right' in tagsL and\
+           xTraCheck == '--yAve':
+            return False
+        if 'yOverscan' in tagsL and xTraCheck == "--xAve":
+            return False
+    return True
+
+def getDataSecList(hdu_list):
+    #Note: I'm assumming that the values in hdu_list are always
+    #formatted correctly
+    dStr=hdu_list[0].header['DATASEC'][1:-1]
+    xStr,yStr=dStr.split(',')
+    # xRange=xStr.split(':') #[int(xVar) for xVar in xStr.split(':')]
+    xRange=[int(xVar) for xVar in xStr.split(':')]
+
+    yRange=[int(yVar) for yVar in yStr.split(':')]
+    return [xRange,yRange]
 
 def checkOptConsistency(myOptDict):
     """Checks if the options given from the command line can be used
@@ -71,7 +143,6 @@ def createExtraOptionsDict(accOpts):
     return extrOptDict
 
 extrOptDict=createExtraOptionsDict(accOpts)
-
 
 def gauss(x, *p):
     A,mu,sigma = p
@@ -125,6 +196,10 @@ def handleMinusI(iNumStr,hdu_list):
         return False
     return True
 
+def getRectangleList(myOptDict,argv):
+    #assuming that all the values are valid
+    rectangleList=[int(argv[rVal]) for rVal in myOptDict['--rectangle'][0:4]]
+    return rectangleList
 
 def handleSubCases(hdu_list, myOptDict, argv):
     iNum=1 #Which image to plot
@@ -175,7 +250,7 @@ def printHelp(argv):
     print("%s file0.fits [file1.fits ...] #displays fits file info\n" %(basename(argv[0])))
     print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--upperB upperBound] [--dump] file0.fits [file1.fits ...] #plots the average pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--upperB upperBound] [--dump] [--sOver] file0.fits [file1.fits ...] #plots the average pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist [--gFit] [--noPlot] file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
     print("%s --pValue xVal yVal [-i iNum] file0.fits [file1.fits ...] #prints the pixel value\n" %(basename(argv[0])))
     # print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
@@ -286,6 +361,34 @@ integers positive. Useful function for the rectangle option and others.
 
     return True
 
+def oSRH(argv,hdu_list,myOptDict,fitsFileIdx):
+    rList=getRectangleList(myOptDict,argv)
+    # print("rList = ", rList)
+    tagsL=getTagsL(rList,hdu_list)
+    # print("tagsL = ", tagsL)
+    oSRect=None
+    xTraCheck=getXYAveTag(myOptDict)
+    if '--sOver' in myOptDict and not isOk2Go(tagsL,xTraCheck):
+        print('error: there are inconsistencies in the defined rectangle')
+        sys.exit()
+
+    dSL=getDataSecList(hdu_list)
+    oSRect=getOverscanRectangle(rList, hdu_list, xTraCheck)
+    xMin,xMax=oSRect[0]
+    yMin,yMax=oSRect[1]
+    if '--sOver' in myOptDict:
+        myOptDict['--sOver']=oSRect
+    iNum=1
+    if '-i' in myOptDict:
+        iNumStr=argv[myOptDict["-i"][0]]
+        if not handleMinusI(iNumStr,hdu_list):
+            return 990
+        iNum=int(iNumStr)
+
+    imageStuff=hdu_list[iNum].data
+    croppedArr=imageStuff[yMin-1:yMax-1,xMin-1:xMax-1]
+    return croppedArr
+
 def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
     if '--rectangle' in myOptDict:
         myRectList=myOptDict['--rectangle']
@@ -361,7 +464,33 @@ def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
         print(myAverage)
     return 34
 
-def getAverageList(list4NumpyStuff,myKey,myOptDict):
+def getOverscanRectangle(rList,hdu_list,xTraCheck):
+    """Gets the proper overscan rectangle region"""
+    #The isOk2Go function has to be
+    #previously run in order to
+    #avoid inconsistencies.
+    tagsL=getTagsL(rList,hdu_list)
+    dSL=getDataSecList(hdu_list)
+
+    xVRange,yVRange=dSL
+    iDShape=hdu_list[1].shape
+    yMax,xMax=iDShape
+    if xTraCheck == '--yAve':
+        oSYRange=rList[2:4]
+        if 'Right' in tagsL:
+            oSXRange=[xVRange[1]+1,xMax]
+        if 'Left' in tagsL:
+            oSXRange=[1,xVRange[0]-1]
+
+    if xTraCheck == '--xAve':
+        oSXRange=rList[:2]
+        oSYRange=[yVRange[1]+1,yMax]
+
+    oSRange=[oSXRange,oSYRange]
+
+    return oSRange
+
+def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
     myAxis=1 #'--yAve'
     dEAx=0
     if myKey=='--xAve':
@@ -369,12 +498,21 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict):
         dEAx=1
     #Getting a zeros numpy array with the same shape
     mySum=np.zeros(list4NumpyStuff[0].shape)
+    oSSum=None
+    if '--sOver' in myOptDict:
+        oSSum=np.zeros(overScanList[0].shape)
+        # oSRect=myOptDict['--sOver']
+        # print("inside getAverageList myOptDict['--sOver'] = ", myOptDict['--sOver'])
+        # oSSum=
+
     #Getting a sumed array from the info in the other fits files.
     uppBInt=myOptDict['uppBInt']
     myMaskArr=[]
     mySumDivEle=[]
     divEle=None
     for i in range(len(list4NumpyStuff)):
+        if  '--sOver' in myOptDict:
+            oSSum+=overScanList[i]
         myMaskArr.append(list4NumpyStuff[i]<=uppBInt)
         try:
             mySum+=list4NumpyStuff[i]*myMaskArr[i]
@@ -390,14 +528,32 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict):
     numberOfRows=len(list4NumpyStuff[0])
     numberOfCols=len(list4NumpyStuff[0][0])
 
-    if myAxis==0:
-        numOfEle=numberOfRows
-    else:# myAxis==1
-        numOfEle=numberOfCols
+    if  '--sOver' in myOptDict:
+        oSCSum=oSSum.sum(axis=myAxis)
+        numberOfOSEntries=len(overScanList)
+        numberOfOSRows=len(overScanList[0])
+        numberOfOSCols=len(overScanList[0][0])
+
+        if myAxis==0:
+            numOfOSEle=numberOfOSRows
+        else:# myAxis==1
+            numOfOSEle=numberOfOSCols
+
+        #No number of entries
+        #division has been done at
+        #this point
+        myOSAverage=[float(oSCV)/(numOfOSEle)\
+                     for oSCV in oSCSum]
+
     cumSum=mySum.sum(axis=myAxis)
 
-    myAverage=[float(cumS)/(divE)\
-               for divE,cumS in zip(divEle,cumSum)]
+    if '--sOver' in myOptDict:
+        myAverage=[float(cumS-(float(divE)/numberOfEntries)*myOSAVal)/(divE)\
+                   for divE,cumS,myOSAVal\
+                   in zip(divEle,cumSum,myOSAverage)]
+    else:
+        myAverage=[float(cumS)/(divE)\
+                   for divE,cumS in zip(divEle,cumSum)]
 
     return myAverage
 
@@ -488,6 +644,7 @@ def main(argv):
     list4NumpyStuff=[]#for getting the numpy stuff in case they exist.
     croppedArrLists=[]
     croppedArrLists2=[]
+    overScanList=[]
     #Looping through all the fits file indeces given though the
     #command line
     for fitsIdx in fitsFIdxs:
@@ -528,6 +685,15 @@ def main(argv):
             if fitsIdx == fitsFIdxs[-1]:
                 #No error is shown if we are not plotting
                 plt.show()
+
+            #Handling the overscan part (inneficient will improve)
+            if '--sOver' not in myOptDict:
+                continue
+            # if  myOptDict['--sOver'] != []:
+            #     continue
+
+            oSCropped=oSRH(argv,hdu_list,myOptDict,fitsFileIdx)
+            overScanList.append(oSCropped)
             continue
 
         if '--pValue' in myOptDict:
@@ -539,20 +705,34 @@ def main(argv):
 
         if '--testing' in myOptDict:
             print("Inside the testing part")
-            print("i value is", iNum)
-            # uV,fC=getFreqCount(hdu_list[iNum].data[44:80,5225:6225])
-            # maxIdx=uV.index(myMax)
+            print("Hello world!")
+            print(len(hdu_list[2].data[0])) # xLen
+            print(len(hdu_list[2].data)) # yLen
+            imageDataShape=hdu_list[1].shape
+            print("DATASEC")
+            print(hdu_list[0].header['DATASEC'])
+            print(hdu_list[0].header['TRIMSEC'])
+            print(type(hdu_list[0].header['DATASEC']))
+            print("imageSHape = ", imageDataShape)
+            tagsL=getTagsL([3500,4600,5,148],hdu_list)
+            print("isOk2Go = ", isOk2Go(tagsL))
+            print("tagsL = ", tagsL)
 
-            uV,fC=getFreqCount(hdu_list[iNum].data[3:42,5225:6225])
-            myMaxIdx=np.argmax(fC)
-            myMaxV=uV[myMaxIdx]
-            myMaxC=fC[myMaxIdx]
-            print(myMaxV,myMaxC)
-            # print(uV)
-            # print(fC)
-            plt.plot(uV,fC)
-            plt.yscale('log',nonposy='clip')
-            plt.show()
+            return hdu_list
+            # print("i value is", iNum)
+            # # uV,fC=getFreqCount(hdu_list[iNum].data[44:80,5225:6225])
+            # # maxIdx=uV.index(myMax)
+
+            # uV,fC=getFreqCount(hdu_list[iNum].data[3:42,5225:6225])
+            # myMaxIdx=np.argmax(fC)
+            # myMaxV=uV[myMaxIdx]
+            # myMaxC=fC[myMaxIdx]
+            # print(myMaxV,myMaxC)
+            # # print(uV)
+            # # print(fC)
+            # plt.plot(uV,fC)
+            # plt.yscale('log',nonposy='clip')
+            # plt.show()
             sys.exit()
 
         # openfits(myFitsF)
@@ -564,6 +744,7 @@ def main(argv):
         else:
             handleSubCases(hdu_list, myOptDict, argv)
 
+    xTraCheck=None
     #This is done outside the for (easier to manipulate here)
     if '--xAve' in myOptDict or '--yAve' in myOptDict:
         myKey='--xAve'
@@ -572,6 +753,7 @@ def main(argv):
         myYLabel='average y value per pixel'
         dumpXLab='xPixel'
         dumpYLab='yAverage'
+        xTraCheck='--xAve'
         if '--yAve' in myOptDict:
             myKey='--yAve'
             minIdx,maxIdx=myOptDict['--rectangle'][2:4]
@@ -579,10 +761,11 @@ def main(argv):
             myYLabel='average x value per pixel'
             dumpXLab='yPixel'
             dumpYLab='xAverage'
+            xTraCheck='--yAve'
 
         minVal,maxVal=int(argv[minIdx]),int(argv[maxIdx])
         aPos=np.arange(minVal,maxVal)
-        myAverageL=getAverageList(list4NumpyStuff, myKey, myOptDict)
+        myAverageL=getAverageList(list4NumpyStuff, myKey, myOptDict,overScanList)
         if '--dump' in myOptDict:
             print("#%s\t%s" %(dumpXLab,dumpYLab))
             for xVal,yVal in zip(aPos,myAverageL):
