@@ -17,7 +17,7 @@ accOpts=['-h','--help','--header',\
          '--noPlot','--noLog',\
          '--xPlot','--xAve','--yAve',\
          '--dump','--upperB','--sOver',\
-         '-i','--pDist',\
+         '--save2Pdf','-i','--pDist',\
          '--r2','--gFit','-p',\
          '-i', '-b','--side','--noLog',\
          '--color']
@@ -28,13 +28,14 @@ cDict={'--help':[], '--header':[],\
                        '--dump','--xAve','--yAve',\
                        '--pDist','--r2','--gFit',\
                        '--noLog','--noPlot',\
-                       '--upperB','--sOver'],\
+                       '--upperB','--sOver','--save2Pdf'],\
        '--xAve': ['-r','--rectangle','-i',\
-                  '--dump','--upperB','--sOver'],\
+                  '--dump','--upperB','--sOver',\
+                  '--save2Pdf'],\
        '--sOver': ['-r','--rectangle','-i',\
                    '--dump','--upperB','--xAve',\
-                   '--yAve'],\
-       '--pVal': ['-i'],\
+                   '--yAve','--save2Pdf'],\
+       '--pVal': ['-i','--save2Pdf'],\
        '-p': ['-i','-d','--side','--noLog','--color']}
 
 #For the equivalent expressions
@@ -249,9 +250,9 @@ def printHelp(argv):
     print("%s [-h|--help]\n" %(basename(argv[0])))
     print("%s file0.fits [file1.fits ...] #displays fits file info\n" %(basename(argv[0])))
     print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--upperB upperBound] [--dump] [--sOver] file0.fits [file1.fits ...] #plots the average pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist [--gFit] [--noPlot] file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot [--save2Pdf file.pdf]] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--upperB upperBound] [--dump | --save2Pdf file.pdf] [--sOver] file0.fits [file1.fits ...] #plots the average pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist [--gFit] [--noPlot | --save2Pdf file.pdf] file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
     print("%s --pValue xVal yVal [-i iNum] file0.fits [file1.fits ...] #prints the pixel value\n" %(basename(argv[0])))
     # print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     # print("extraOptions:\n")
@@ -622,6 +623,15 @@ def main(argv):
         printHelp(argv)
         return 5
 
+    if '--save2Pdf' in myOptDict:
+        print("--save2Pdf in options, hurray!")
+        #parsing should be done for this part, getting 1 argument etc.
+        myPltFig=plt.figure()
+        myPdfFile=argv[myOptDict['--save2Pdf'][0]]
+        if not myPdfFile.endswith('.pdf'):
+            print('error: pdfFilename has to end with ".pdf"!')
+            return 999
+
     fitsFIdxs=myOptDict['fitsFiles']
     if len(fitsFIdxs) == 0:
         print("error: at least 1 fits file has to be provided")
@@ -682,9 +692,12 @@ def main(argv):
                     croppedArrLists2.append(newSubRectArr)
             elif exitVal >= 600:
                 return 666
-            if fitsIdx == fitsFIdxs[-1]:
+            # if fitsIdx == fitsFIdxs[-1]:
                 #No error is shown if we are not plotting
-                plt.show()
+                # if '--save2Pdf' not in myOptDict:
+                #     plt.show()
+                # else:
+                #     print("saving to pdf...?")
 
             #Handling the overscan part (inneficient will improve)
             if '--sOver' not in myOptDict:
@@ -746,6 +759,13 @@ def main(argv):
 
     xTraCheck=None
     #This is done outside the for (easier to manipulate here)
+    if '--xPlot' in myOptDict:
+        if "--save2Pdf" not in myOptDict:
+            plt.show()
+        else:
+            plt.savefig(myPdfFile, bbox_inches='tight')
+        return 0
+
     if '--xAve' in myOptDict or '--yAve' in myOptDict:
         myKey='--xAve'
         minIdx,maxIdx=myOptDict['--rectangle'][0:2]
@@ -774,7 +794,11 @@ def main(argv):
             plt.xlabel(myXLabel)
             plt.ylabel(myYLabel)
             plt.plot(aPos,myAverageL, marker='^')
-            plt.show()
+            if '--save2Pdf' not in myOptDict:
+                plt.show()
+            else:
+                plt.savefig(myPdfFile, bbox_inches='tight')
+
         return 0
 
     if '--pDist' in myOptDict:
@@ -821,7 +845,12 @@ def main(argv):
                                                      sigma-sigma2))
 
         if not '--noPlot' in myOptDict:
-            plt.show()
+            if '--save2Pdf' not in myOptDict:
+                plt.show()
+            else:
+                plt.savefig(myPdfFile, bbox_inches='tight')
+
+            # plt.show()
         return 0
 
 if __name__ == "__main__":
