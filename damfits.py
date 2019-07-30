@@ -624,7 +624,6 @@ def main(argv):
         return 5
 
     if '--save2Pdf' in myOptDict:
-        print("--save2Pdf in options, hurray!")
         #parsing should be done for this part, getting 1 argument etc.
         myPltFig=plt.figure()
         myPdfFile=argv[myOptDict['--save2Pdf'][0]]
