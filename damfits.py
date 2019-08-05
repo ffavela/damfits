@@ -434,10 +434,11 @@ def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
     if '--xPlot' in myOptDict:
         xSum=croppedArr.sum(axis=0)
         xPos=np.arange(xMin,xMax)
-        plt.xlabel("x pixel")
-        plt.ylabel("Sum of y vals")
-        plt.title("Cummulative vals of y vs x")
-        plt.plot(xPos,xSum)
+        if '--noPlot' not in myOptDict:
+            plt.xlabel("x pixel")
+            plt.ylabel("Sum of y vals")
+            plt.title("Cummulative vals of y vs x")
+            plt.plot(xPos,xSum)
     elif '--xAve' in myOptDict or '--yAve' in myOptDict:
         return croppedArr
     elif '--pDist' in myOptDict:
@@ -731,20 +732,6 @@ def main(argv):
             print("tagsL = ", tagsL)
 
             return hdu_list
-            # print("i value is", iNum)
-            # # uV,fC=getFreqCount(hdu_list[iNum].data[44:80,5225:6225])
-            # # maxIdx=uV.index(myMax)
-
-            # uV,fC=getFreqCount(hdu_list[iNum].data[3:42,5225:6225])
-            # myMaxIdx=np.argmax(fC)
-            # myMaxV=uV[myMaxIdx]
-            # myMaxC=fC[myMaxIdx]
-            # print(myMaxV,myMaxC)
-            # # print(uV)
-            # # print(fC)
-            # plt.plot(uV,fC)
-            # plt.yscale('log',nonposy='clip')
-            # plt.show()
             sys.exit()
 
         # openfits(myFitsF)
@@ -790,14 +777,14 @@ def main(argv):
             for xVal,yVal in zip(aPos,myAverageL):
                 print("%d\t%0.3f" %(xVal,yVal))
         else:
-            plt.xlabel(myXLabel)
-            plt.ylabel(myYLabel)
-            plt.plot(aPos,myAverageL, marker='^')
-            if '--save2Pdf' not in myOptDict:
-                plt.show()
-            else:
-                plt.savefig(myPdfFile, bbox_inches='tight')
-
+            if '--noPlot' not in myOptDict:
+                plt.xlabel(myXLabel)
+                plt.ylabel(myYLabel)
+                plt.plot(aPos,myAverageL, marker='^')
+                if '--save2Pdf' not in myOptDict:
+                    plt.show()
+                else:
+                    plt.savefig(myPdfFile, bbox_inches='tight')
         return 0
 
     if '--pDist' in myOptDict:
@@ -807,19 +794,21 @@ def main(argv):
             flatFlatArr=np.append(flatFlatArr,newFlatLists[i])
         uV,fC=getFreqCount(flatFlatArr)
         # p0 my initial guess for the fitting coefficients (A, mu and sigma)
-        plt.xlabel("pixel value")
-        plt.ylabel("counts")
+        if '--noPlot' not in myOptDict:
+            plt.xlabel("pixel value")
+            plt.ylabel("counts")
 
-        plt.plot(uV,fC)
-        if not '--noLog' in myOptDict:
-            plt.yscale('log', nonposy='clip')
+            plt.plot(uV,fC)
+            if not '--noLog' in myOptDict:
+                plt.yscale('log', nonposy='clip')
         if '--r2' in myOptDict:
             newFlatLists2=[e.flatten() for e in croppedArrLists2]
             flatFlatArr2=newFlatLists2[0]
             for i in range(1,len(newFlatLists2)):
                 flatFlatArr2=np.append(flatFlatArr2,newFlatLists2[i])
             uV2,fC2=getFreqCount(flatFlatArr2)
-            plt.plot(uV2,fC2)
+            if '--noPlot' not in myOptDict:
+                plt.plot(uV2,fC2)
 
         if '--gFit' in myOptDict:
             print("#rect\tA\tmean\tsigma")
@@ -828,7 +817,8 @@ def main(argv):
             myMaxC=fC[myMaxIdx]#guess for A
             mySigma=100#find better estimate
             popt,pcov = curve_fit(gauss,uV,fC,p0=[myMaxC, myMaxV, mySigma])
-            plt.plot(uV,gauss(uV,*popt),label='fit')
+            if '--noPlot' not in myOptDict:
+                plt.plot(uV,gauss(uV,*popt),label='fit')
             A,mean,sigma=popt
             print("r1\t%0.2f\t%0.2f\t%0.2f" %(A,mean,sigma))
             if '--r2' in myOptDict:
@@ -836,7 +826,8 @@ def main(argv):
                 myMaxV2=uV2[myMaxIdx2]
                 myMaxC2=fC2[myMaxIdx2]
                 popt2,pcov2 = curve_fit(gauss,uV2,fC2,p0=[myMaxC2, myMaxV2, 100.])
-                plt.plot(uV2,gauss(uV2,*popt2),label='fit2')
+                if '--noPlot' not in myOptDict:
+                    plt.plot(uV2,gauss(uV2,*popt2),label='fit2')
                 A2,mean2,sigma2=popt2
                 print("r2\t%0.2f\t%0.2f\t%0.2f" %(A2,mean2,sigma2))
                 print("r1-r2\t%0.2f\t%0.2f\t%0.2f" %(A-A2,\
@@ -849,7 +840,6 @@ def main(argv):
             else:
                 plt.savefig(myPdfFile, bbox_inches='tight')
 
-            # plt.show()
         return 0
 
 if __name__ == "__main__":
