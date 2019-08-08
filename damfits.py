@@ -17,7 +17,7 @@ accOpts=['-h','--help','--header',\
          '--noPlot','--noLog',\
          '--xPlot','--xAve','--yAve',\
          '--dump','--upperB','--sOver',\
-         '--save2Pdf','-i','--pDist',\
+         '--save2Pdf','--range','-i','--pDist',\
          '--r2','--gFit','-p',\
          '-i', '-b','--side','--noLog',\
          '--color']
@@ -31,10 +31,10 @@ cDict={'--help':[], '--header':[],\
                        '--upperB','--sOver','--save2Pdf'],\
        '--xAve': ['-r','--rectangle','-i',\
                   '--dump','--upperB','--sOver',\
-                  '--save2Pdf'],\
+                  '--save2Pdf','--range'],\
        '--sOver': ['-r','--rectangle','-i',\
                    '--dump','--upperB','--xAve',\
-                   '--yAve','--save2Pdf'],\
+                   '--yAve','--save2Pdf','--range'],\
        '--pVal': ['-i','--save2Pdf'],\
        '-p': ['-i','-d','--side','--noLog','--color']}
 
@@ -179,7 +179,9 @@ def getMyOptDict(myArgs):
 
         if e.endswith('.fits'):
             myOptDict['fitsFiles'].append(i)
-            #leaving the tmpOpt conditional after this one for now
+            #Assuming that if a fits file is found then whatever
+            #option was used has finished receiving it's arguments.
+            tmpOpt = ''
 
         if tmpOpt != '':
             myOptDict[tmpOpt].append(i)
@@ -198,6 +200,9 @@ def handleMinusI(iNumStr,hdu_list):
     return True
 
 def getRectangleList(myOptDict,argv):
+    #Assuming the rectangle check has already been done
+    if '-r' in myOptDict:
+        myOptDict['--rectangle']=myOptDict['-r']
     #assuming that all the values are valid
     rectangleList=[int(argv[rVal]) for rVal in myOptDict['--rectangle'][0:4]]
     return rectangleList
@@ -362,7 +367,7 @@ integers positive. Useful function for the rectangle option and others.
 
     return True
 
-def oSRH(argv,hdu_list,myOptDict,fitsFileIdx):
+def oSRH(argv,hdu_list,myOptDict,fitsFileIdx,marginD=0):
     rList=getRectangleList(myOptDict,argv)
     # print("rList = ", rList)
     tagsL=getTagsL(rList,hdu_list)
@@ -374,7 +379,7 @@ def oSRH(argv,hdu_list,myOptDict,fitsFileIdx):
         sys.exit()
 
     dSL=getDataSecList(hdu_list)
-    oSRect=getOverscanRectangle(rList, hdu_list, xTraCheck)
+    oSRect=getOverscanRectangle(rList, hdu_list, xTraCheck,marginD)
     xMin,xMax=oSRect[0]
     yMin,yMax=oSRect[1]
     if '--sOver' in myOptDict:
@@ -391,22 +396,13 @@ def oSRH(argv,hdu_list,myOptDict,fitsFileIdx):
     return croppedArr
 
 def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
-    if '--rectangle' in myOptDict:
-        myRectList=myOptDict['--rectangle']
-    else:
-        myRectList=myOptDict['-r']
-    rectNum=len(myRectList)
-    if fitsFileIdx in myRectList:
-        rectNum-=1
-    if rectNum != 4:
-        print("error: rectangle option needs exactly 4 arguments")
-        return 666
-    myRectList=myRectList[0:4]
-    if not checkIfIntArgs(myRectList,argv):
-        print("error: rectangle arguments must be integers")
-        return 667
+    if not checkRectangle(myOptDict,argv,fitsFileIdx):
+        print("error: invalid rectangle")
+        return False
+
     #Getting the integers from the command line
-    myRectVals=[int(argv[e]) for e in myRectList]
+    # myRectVals=[int(argv[e]) for e in myRectList]
+    myRectVals=getRectangleList(myOptDict,argv)
     xMin,xMax,yMin,yMax=myRectVals
     if not checkIfValidRect(myRectVals):
         print("error: invalid rectangle range")
@@ -466,7 +462,7 @@ def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
         print(myAverage)
     return 34
 
-def getOverscanRectangle(rList,hdu_list,xTraCheck):
+def getOverscanRectangle(rList,hdu_list,xTraCheck,marginD=0):
     """Gets the proper overscan rectangle region"""
     #The isOk2Go function has to be
     #previously run in order to
@@ -480,13 +476,13 @@ def getOverscanRectangle(rList,hdu_list,xTraCheck):
     if xTraCheck == '--yAve':
         oSYRange=rList[2:4]
         if 'Right' in tagsL:
-            oSXRange=[xVRange[1]+1,xMax]
+            oSXRange=[xVRange[1]+1+marginD,xMax-marginD]
         if 'Left' in tagsL:
-            oSXRange=[1,xVRange[0]-1]
+            oSXRange=[1+marginD,xVRange[0]-1-marginD]
 
     if xTraCheck == '--xAve':
         oSXRange=rList[:2]
-        oSYRange=[yVRange[1]+1,yMax]
+        oSYRange=[yVRange[1]+1+marginD,yMax-marginD]
 
     oSRange=[oSXRange,oSYRange]
 
@@ -501,11 +497,11 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
     #Getting a zeros numpy array with the same shape
     mySum=np.zeros(list4NumpyStuff[0].shape)
     oSSum=None
+    # oSSquareSum=None
     if '--sOver' in myOptDict:
         oSSum=np.zeros(overScanList[0].shape)
+        # oSSquareSum=np.zeros(overScanList[0].shape)
         # oSRect=myOptDict['--sOver']
-        # print("inside getAverageList myOptDict['--sOver'] = ", myOptDict['--sOver'])
-        # oSSum=
 
     #Getting a sumed array from the info in the other fits files.
     uppBInt=myOptDict['uppBInt']
@@ -515,6 +511,7 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
     for i in range(len(list4NumpyStuff)):
         if  '--sOver' in myOptDict:
             oSSum+=overScanList[i]
+            # oSSquareSum+=np.square(overScanList[i])
         myMaskArr.append(list4NumpyStuff[i]<=uppBInt)
         try:
             mySum+=list4NumpyStuff[i]*myMaskArr[i]
@@ -531,7 +528,11 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
     numberOfCols=len(list4NumpyStuff[0][0])
 
     if  '--sOver' in myOptDict:
-        oSCSum=oSSum.sum(axis=myAxis)
+        # print("oSSum = ",oSSum)
+        oSCSum= oSSum.sum(axis=myAxis)
+        # print("myAxis = ",myAxis)
+        # print("len =  ", len(oSSum[0]))
+        # oSCSquareSum=oSSquareSum.sum(axis=myAxis)
         numberOfOSEntries=len(overScanList)
         numberOfOSRows=len(overScanList[0])
         numberOfOSCols=len(overScanList[0][0])
@@ -547,6 +548,7 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
         myOSAverage=[float(oSCV)/(numOfOSEle)\
                      for oSCV in oSCSum]
 
+        # myOSSquareAverage=
     cumSum=mySum.sum(axis=myAxis)
 
     if '--sOver' in myOptDict:
@@ -609,6 +611,69 @@ def handlePValue(argv,hdu_list,myOptDict,fitsFileIdx):
     pValue=imageStuff[myYP-1,myXP-1]
     return pValue
 
+def checkRectangle(myOptDict,argv,fitsFileIdx):
+    if '--rectangle' in myOptDict:
+        myRectList=myOptDict['--rectangle']
+    else:
+        myRectList=myOptDict['-r']
+    rectNum=len(myRectList)
+    #Maybe it's now unecessary (the fits check)
+    if fitsFileIdx in myRectList:
+        rectNum-=1
+    if rectNum != 4: #are we ready to put an equal here?
+        print("error: rectangle option needs exactly 4 arguments")
+        return False
+    myRectList=myRectList[0:4]
+    if not checkIfIntArgs(myRectList,argv):
+        print("error: rectangle arguments must be integers")
+        return False
+    return True
+
+def checkRange(myOptDict,argv):
+    if '--range' not in myOptDict:
+        #This check was probably done before the function call
+        return False
+
+    rangeIdxList=myOptDict['--range']
+    if len(rangeIdxList) < 2:
+        print("error: --range option needs at least 2 arguments")
+        return False
+
+    if len(rangeIdxList) % 2 != 0:
+        print("error: --range option needs even numbers of arguments")
+        return False
+
+    if not checkIfIntArgs(rangeIdxList,argv):
+        print("error: --range option needs only positive integers")
+        return False
+
+    rangeArgL=[int(argv[idx]) for idx in rangeIdxList]
+
+    for i in range(len(rangeArgL)//2):
+        if rangeArgL[2*i] > rangeArgL[2*i+1]:
+            print("error: --range iVal < fVal has to be satisfied")
+            return False
+
+    #Rectangle option has to be previously defined in order to use
+    #also the range option. Along with either --xAve or --yAve
+    rectangleList=getRectangleList(myOptDict,argv)
+    if not ('--yAve' in myOptDict or '--xAve' in myOptDict):
+        print("error: --range option needs either --yAve or --xAve")
+        return False
+
+    if '--xAve' in myOptDict:
+        rMin,rMax=rectangleList[:2]
+    else: #--yAve case
+        rMin,rMax=rectangleList[2:]#rectangle list returns a 4 element
+                                   #list so these are the last 2.
+
+    #Now checking that the ranges are within the rMin and rMax range.
+    for e in rangeArgL:
+        if not rMin <= e <= rMax:
+            print("error: all --range values have to be inside rectangle %d <= %d <= %d is False" %(rMin, e, rMax))
+            return False
+    return True
+
 def main(argv):
     if len(argv) < 2:
         print("usage: "\
@@ -623,6 +688,11 @@ def main(argv):
     if '-h' in myOptDict or '--help' in myOptDict:
         printHelp(argv)
         return 5
+
+    if '--range' in myOptDict:
+        if not checkRange(myOptDict,argv):
+            return 9384
+        return 9990
 
     if '--save2Pdf' in myOptDict:
         #parsing should be done for this part, getting 1 argument etc.
@@ -704,8 +774,8 @@ def main(argv):
                 continue
             # if  myOptDict['--sOver'] != []:
             #     continue
-
-            oSCropped=oSRH(argv,hdu_list,myOptDict,fitsFileIdx)
+            marginD=0
+            oSCropped=oSRH(argv,hdu_list,myOptDict,fitsFileIdx,marginD=6)
             overScanList.append(oSCropped)
             continue
 
