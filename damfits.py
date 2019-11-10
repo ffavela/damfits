@@ -35,6 +35,8 @@ cDict={'--help':[], '--header':[],\
        '--sOver': ['-r','--rectangle','-i',\
                    '--dump','--upperB','--xAve',\
                    '--yAve','--save2Pdf','--range'],\
+                   # '--yAve','--save2Pdf','--range',\
+                   # '--pDist','--gFit'],\
        '--pVal': ['-i','--save2Pdf'],\
        '-p': ['-i','-d','--side','--noLog','--color']}
 
@@ -150,6 +152,10 @@ def gauss(x, *p):
     return A*np.exp(-(x-mu)**2/(2.*sigma**2))
 
 def handleHeader(hdu_list,myOptDict,argv):
+    if len(myOptDict['--header']) == 0:
+        print("error: header needs an extention number.")
+        return
+
     myHeaderStr=argv[myOptDict['--header'][0]]
     print("Header is %s" %(myHeaderStr))
     if not myHeaderStr.isdigit():
@@ -473,6 +479,13 @@ def getOverscanRectangle(rList,hdu_list,xTraCheck,marginD=0):
     xVRange,yVRange=dSL
     iDShape=hdu_list[1].shape
     yMax,xMax=iDShape
+
+    # print('xTraCheck = ', xTraCheck)
+    if xTraCheck == None:
+        #assuming we got pDist and the operation we want is the same
+        #as for --yAve
+        xTraCheck = '--yAve'
+
     if xTraCheck == '--yAve':
         oSYRange=rList[2:4]
         if 'Right' in tagsL:
@@ -503,7 +516,7 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
         # oSSquareSum=np.zeros(overScanList[0].shape)
         # oSRect=myOptDict['--sOver']
 
-    #Getting a sumed array from the info in the other fits files.
+    #Getting a summed array from the info in the other fits files.
     uppBInt=myOptDict['uppBInt']
     myMaskArr=[]
     mySumDivEle=[]
@@ -810,6 +823,7 @@ def main(argv):
                 hdu_list.info()
             else:
                 handleHeader(hdu_list,myOptDict,argv)
+                return 0
         else:
             handleSubCases(hdu_list, myOptDict, argv)
 
@@ -859,6 +873,12 @@ def main(argv):
 
     if '--pDist' in myOptDict:
         newFlatLists=[e.flatten() for e in croppedArrLists]
+        myKey='--yAve'
+        # print("overScanList = ",overScanList)
+        # print('croppedArrLists = ',croppedArrLists)
+        # myAverageL=getAverageList(croppedArrLists, myKey, myOptDict,overScanList)
+        # print('myAverageL = ',myAverageL)
+        # newFlatLists=[e.flatten() for e in myAverageL]
         flatFlatArr=newFlatLists[0]
         for i in range(1,len(newFlatLists)):
             flatFlatArr=np.append(flatFlatArr,newFlatLists[i])
