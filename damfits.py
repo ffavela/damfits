@@ -5,6 +5,7 @@ from os.path import basename #For printing nicely argv[0]
 import os.path
 import numpy as np
 from scipy.optimize import curve_fit
+from scipy.special import factorial
 
 import matplotlib.pyplot as plt
 from astropy.io import fits
@@ -20,7 +21,7 @@ accOpts=['-h','--help','--header',\
          '--save2Pdf','--range','-i','--pDist',\
          '--r2','--gFit','-p',\
          '-i', '-b','--side','--noLog',\
-         '--color']
+         '--color', '--newFit']
 
 #A consistency dictionary
 cDict={'--help':[], '--header':[],\
@@ -28,15 +29,16 @@ cDict={'--help':[], '--header':[],\
                        '--dump','--xAve','--yAve',\
                        '--pDist','--r2','--gFit',\
                        '--noLog','--noPlot',\
-                       '--upperB','--sOver','--save2Pdf'],\
+                       '--upperB','--sOver','--save2Pdf',\
+                       '--newFit'],\
        '--xAve': ['-r','--rectangle','-i',\
                   '--dump','--upperB','--sOver',\
                   '--save2Pdf','--range'],\
        '--sOver': ['-r','--rectangle','-i',\
                    '--dump','--upperB','--xAve',\
-                   '--yAve','--save2Pdf','--range'],\
-                   # '--yAve','--save2Pdf','--range',\
-                   # '--pDist','--gFit'],\
+                   # '--yAve','--save2Pdf','--range'],\
+                   '--yAve','--save2Pdf','--range',\
+                   '--pDist','--gFit'],\
        '--pVal': ['-i','--save2Pdf'],\
        '-p': ['-i','-d','--side','--noLog','--color']}
 
@@ -150,6 +152,38 @@ extrOptDict=createExtraOptionsDict(accOpts)
 def gauss(x, *p):
     A,mu,sigma = p
     return A*np.exp(-(x-mu)**2/(2.*sigma**2))
+
+#### for doinf some convolution fitting ####
+def gaussian(x, *p):
+    A,mu,sig = p
+    return A*np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
+def poisson(*q):
+    k,lamb=q
+    return (lamb**k/factorial(k)) * np.exp(-lamb)
+
+def simpleConv(x, A, mu, sig, lamb_d, maxK=20):
+    mySumArr=np.float64(np.zeros_like(x))
+    # fS="/home/frank/mess/damic/karthicFiles/fanoRed.tsv"
+    for k in range(maxK):
+        mySumArr+=np.float64(poisson(k,lamb_d)*gaussian(x,A,mu,sig+k))
+        # mySumArr+=poisson(k,lamb_d)*gaussian(x,A,mu,sig+k)
+        # n = np.subtract(yn, self.y_mean, out=yn, casting="unsafe")
+        # mySumArr = np.add(mySumArr, poisson(k,lamb_d)*gaussian(x,A,mu,sig+k),\
+        #                   out=mySumArr, casting="unsafe")
+        # mySumArr += poisson(k,lamb_d)*gaussian(x,A,mu,sig+k).astype(mySumArr.dtype)
+    return mySumArr
+
+def simpleConv2(x, A, mu, sig, lamb_d, lamb, maxK=10, maxKK=10):
+    mySumArr=np.float64(np.zeros_like(x))
+    # fS="/home/frank/mess/damic/karthicFiles/fanoRed.tsv"
+    # print(type(maxK))
+    for k in range(maxK):
+        for kk in range(maxKK):
+            mySumArr+=np.float64(poisson(kk,lamb)*poisson(k,lamb_d)*gaussian(x,A,mu,sig+k))
+    return mySumArr
+
+#### Convolution fitting functs end ####
 
 def handleHeader(hdu_list,myOptDict,argv):
     if len(myOptDict['--header']) == 0:
@@ -402,6 +436,8 @@ def oSRH(argv,hdu_list,myOptDict,fitsFileIdx,marginD=0):
     return croppedArr
 
 def rectangleHandling(argv,hdu_list,myOptDict,fitsFileIdx):
+    """This function will return a number greater (or equal) than 600 if
+there was an error. Else it will return a numpy array if... """
     if not checkRectangle(myOptDict,argv,fitsFileIdx):
         print("error: invalid rectangle")
         return False
@@ -923,6 +959,28 @@ def main(argv):
                 print("r1-r2\t%0.2f\t%0.2f\t%0.2f" %(A-A2,\
                                                      mean-mean2,\
                                                      sigma-sigma2))
+
+        if '--newFit' in myOptDict:
+            print("Inside the new fitting function")
+            # return 10
+            print("#rect\tA\tmean\tsigma\tlambda")
+            myMaxIdx=np.argmax(fC)#locating the index
+            myMaxV=uV[myMaxIdx]#guess for the mean
+            myMaxC=fC[myMaxIdx]#guess for A
+            mySigma=20#find better estimate
+            lamb_d=2 #Find a better way to do this!
+            lamb=4.3 #Find a better way to do this!
+            popt,pcov = curve_fit(simpleConv,uV,fC,p0=[myMaxC, myMaxV, mySigma,lamb_d])
+            if '--noPlot' not in myOptDict:
+                plt.plot(uV,simpleConv(uV,*popt),label='fit')
+            A,mean,sigma,lamb_d=popt
+            print("r1\t%0.2f\t%0.2f\t%0.2f\t%0.2f" %(A,mean,sigma,lamb_d))
+
+            # popt,pcov = curve_fit(simpleConv2,uV,fC,p0=[myMaxC, myMaxV, mySigma,lamb_d,lamb])
+            # if '--noPlot' not in myOptDict:
+            #     plt.plot(uV,simpleConv(uV,*popt),label='fit')
+            # A,mean,sigma,lamb_d,lamb=popt
+            # print("r1\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f" %(A,mean,sigma,lamb_d,lamb))
 
         if not '--noPlot' in myOptDict:
             if '--save2Pdf' not in myOptDict:
