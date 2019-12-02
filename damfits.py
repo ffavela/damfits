@@ -550,21 +550,37 @@ def getMaskArrAndSum(list4NumpyStuff, myOptDict):
             sys.exit()
     return myMaskArr,mySum
 
+def getOverscanAverages(overScanList, myAxis):
+    oSSum=np.zeros(overScanList[0].shape)
+
+    for oVal in overScanList:
+        oSSum+=oVal
+
+    oSCSum= oSSum.sum(axis=myAxis)
+    numberOfOSEntries=len(overScanList)
+    numberOfOSRows=len(overScanList[0])
+    numberOfOSCols=len(overScanList[0][0])
+
+    if myAxis==0:
+        numOfOSEle=numberOfOSRows
+    else:# myAxis==1
+        numOfOSEle=numberOfOSCols
+
+    #No number of entries
+    #division has been done at
+    #this point
+    myOSAverages=[float(oSCV)/(numOfOSEle)\
+                  for oSCV in oSCSum]
+
+    return myOSAverages
+
 
 def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
     myAxis=1 #'--yAve'
-    dEAx=0
     if myKey=='--xAve':
         myAxis=0
-        dEAx=1
     #Getting a zeros numpy array with the same shape
     mySum=np.zeros(list4NumpyStuff[0].shape)
-    oSSum=None
-    # oSSquareSum=None
-    if '--sOver' in myOptDict:
-        oSSum=np.zeros(overScanList[0].shape)
-        # oSSquareSum=np.zeros(overScanList[0].shape)
-        # oSRect=myOptDict['--sOver']
 
     #Getting a summed array from the info in the other fits files.
     myMaskArr,mySum = getMaskArrAndSum(list4NumpyStuff, myOptDict)
@@ -577,41 +593,16 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
             divEle+=myMaskArr[i].sum(axis=myAxis)
 
     numberOfEntries=len(list4NumpyStuff)
-    numberOfRows=len(list4NumpyStuff[0])
-    numberOfCols=len(list4NumpyStuff[0][0])
+    # numberOfRows=len(list4NumpyStuff[0])
+    # numberOfCols=len(list4NumpyStuff[0][0])
 
-    if  '--sOver' in myOptDict:
-        for i in range(len(list4NumpyStuff)):
-            oSSum+=overScanList[i]
-            # oSSquareSum+=np.square(overScanList[i])
-
-        # print("oSSum = ",oSSum)
-        oSCSum= oSSum.sum(axis=myAxis)
-        # print("myAxis = ",myAxis)
-        # print("len =  ", len(oSSum[0]))
-        # oSCSquareSum=oSSquareSum.sum(axis=myAxis)
-        numberOfOSEntries=len(overScanList)
-        numberOfOSRows=len(overScanList[0])
-        numberOfOSCols=len(overScanList[0][0])
-
-        if myAxis==0:
-            numOfOSEle=numberOfOSRows
-        else:# myAxis==1
-            numOfOSEle=numberOfOSCols
-
-        #No number of entries
-        #division has been done at
-        #this point
-        myOSAverage=[float(oSCV)/(numOfOSEle)\
-                     for oSCV in oSCSum]
-
-        # myOSSquareAverage=
     cumSum=mySum.sum(axis=myAxis)
 
     if '--sOver' in myOptDict:
-        myAverage=[float(cumS-(float(divE)/numberOfEntries)*myOSAVal)/(divE)\
-                   for divE,cumS,myOSAVal\
-                   in zip(divEle,cumSum,myOSAverage)]
+        myOSAverages = getOverscanAverages(overScanList, myAxis)
+        myAverage=[float(cumS-(float(divE)/numberOfEntries)\
+                         *myOSAVal)/(divE) for divE,cumS,myOSAVal\
+                   in zip(divEle,cumSum,myOSAverages)]
     else:
         myAverage=[float(cumS)/(divE)\
                    for divE,cumS in zip(divEle,cumSum)]
