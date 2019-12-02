@@ -550,7 +550,17 @@ def getMaskArrAndSum(list4NumpyStuff, myOptDict):
             sys.exit()
     return myMaskArr,mySum
 
+def simpleOSSub(myArray,myOSAverages, myAxis):
+    if myAxis == 1: #'--yAve'
+        #Doing 1d transpose
+        subArr=myArray-myOSAverages[:, np.newaxis]
+    else:
+        subArr=myArray-myOSAverages
+    return subArr
+
 def getOverscanAverages(overScanList, myAxis):
+    """Returns the average overscan values with respect to the columns or
+rows"""
     oSSum=np.zeros(overScanList[0].shape)
 
     for oVal in overScanList:
@@ -569,8 +579,8 @@ def getOverscanAverages(overScanList, myAxis):
     #No number of entries
     #division has been done at
     #this point
-    myOSAverages=[float(oSCV)/(numOfOSEle)\
-                  for oSCV in oSCSum]
+    myOSAverages=np.array([float(oSCV)/(numOfOSEle)\
+                           for oSCV in oSCSum])
 
     return myOSAverages
 
@@ -600,6 +610,12 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
 
     if '--sOver' in myOptDict:
         myOSAverages = getOverscanAverages(overScanList, myAxis)
+        # print("mySum = ", mySum)
+        subArr = simpleOSSub(mySum, myOSAverages, myAxis)
+        cumSubSum=subArr.sum(axis=myAxis)
+        # myAverage=[float(cumSS/divE) for divE,cumSS\
+        #            in zip(divEle,cumSubSum)]
+
         myAverage=[float(cumS-(float(divE)/numberOfEntries)\
                          *myOSAVal)/(divE) for divE,cumS,myOSAVal\
                    in zip(divEle,cumSum,myOSAverages)]
