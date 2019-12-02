@@ -541,7 +541,6 @@ def getMaskArrAndSum(list4NumpyStuff, myOptDict):
     mySum=np.zeros(list4NumpyStuff[0].shape)
     myMaskArr=[]
     uppBInt=myOptDict['uppBInt']
-    print("uppBInt = ", uppBInt)
     for i in range(len(list4NumpyStuff)):
         myMaskArr.append(list4NumpyStuff[i]<=uppBInt)
         try:
@@ -568,14 +567,9 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
         # oSRect=myOptDict['--sOver']
 
     #Getting a summed array from the info in the other fits files.
-    uppBInt=myOptDict['uppBInt']
-    myMaskArr=[]
-    mySumDivEle=[]
-    divEle=None
-
-
     myMaskArr,mySum = getMaskArrAndSum(list4NumpyStuff, myOptDict)
 
+    divEle=None
     for i in range(len(list4NumpyStuff)):
         if type(divEle).__module__ != np.__name__:
             divEle=myMaskArr[i].sum(axis=myAxis)
