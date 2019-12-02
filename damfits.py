@@ -537,6 +537,21 @@ def getOverscanRectangle(rList,hdu_list,xTraCheck,marginD=0):
 
     return oSRange
 
+def getMaskArrAndSum(list4NumpyStuff, myOptDict):
+    mySum=np.zeros(list4NumpyStuff[0].shape)
+    myMaskArr=[]
+    uppBInt=myOptDict['uppBInt']
+    print("uppBInt = ", uppBInt)
+    for i in range(len(list4NumpyStuff)):
+        myMaskArr.append(list4NumpyStuff[i]<=uppBInt)
+        try:
+            mySum+=list4NumpyStuff[i]*myMaskArr[i]
+        except:
+            print("error: the pixel sizes don't appear to be the same in all files.")
+            sys.exit()
+    return myMaskArr,mySum
+
+
 def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
     myAxis=1 #'--yAve'
     dEAx=0
@@ -557,16 +572,11 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
     myMaskArr=[]
     mySumDivEle=[]
     divEle=None
+
+
+    myMaskArr,mySum = getMaskArrAndSum(list4NumpyStuff, myOptDict)
+
     for i in range(len(list4NumpyStuff)):
-        if  '--sOver' in myOptDict:
-            oSSum+=overScanList[i]
-            # oSSquareSum+=np.square(overScanList[i])
-        myMaskArr.append(list4NumpyStuff[i]<=uppBInt)
-        try:
-            mySum+=list4NumpyStuff[i]*myMaskArr[i]
-        except:
-            print("error: the pixel sizes don't appear to be the same in all files.")
-            sys.exit()
         if type(divEle).__module__ != np.__name__:
             divEle=myMaskArr[i].sum(axis=myAxis)
         else:
@@ -577,6 +587,10 @@ def getAverageList(list4NumpyStuff,myKey,myOptDict,overScanList=[]):
     numberOfCols=len(list4NumpyStuff[0][0])
 
     if  '--sOver' in myOptDict:
+        for i in range(len(list4NumpyStuff)):
+            oSSum+=overScanList[i]
+            # oSSquareSum+=np.square(overScanList[i])
+
         # print("oSSum = ",oSSum)
         oSCSum= oSSum.sum(axis=myAxis)
         # print("myAxis = ",myAxis)
