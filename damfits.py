@@ -541,7 +541,9 @@ def getMaskArrAndSum(list4NumpyStuff, myOptDict):
     mySum=np.zeros(list4NumpyStuff[0].shape)
     myMaskArr=[]
     uppBInt=myOptDict['uppBInt']
+    print("uppBInt = ", uppBInt)
     for i in range(len(list4NumpyStuff)):
+        print("i = ", i)
         myMaskArr.append(list4NumpyStuff[i]<=uppBInt)
         try:
             mySum+=list4NumpyStuff[i]*myMaskArr[i]
@@ -928,6 +930,10 @@ def main(argv):
         return 0
 
     if '--pDist' in myOptDict:
+        if '--upperB' in myOptDict:
+            print("Doing masking part")
+            myMaskArr,croppedArrLists = getMaskArrAndSum(croppedArrLists,\
+                                               myOptDict)
         newFlatLists=[e.flatten() for e in croppedArrLists]
         myKey='--yAve'
         # print("overScanList = ",overScanList)
