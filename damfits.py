@@ -563,6 +563,22 @@ def simpleOSSub(myArray,myOSAverages,\
 
     return subArr
 
+def getProcessedCroppedArrLists(croppedArrLists, overScanList,\
+                                myOptDict,myAxis):
+    #Just in case --upperB wasn't used
+    myMaskArr=np.ones(croppedArrLists[0].shape)
+    if '--upperB' in myOptDict:
+        myMaskArr,croppedArrLists = getMaskArrAndSum(croppedArrLists,\
+                                                     myOptDict)
+    if '--sOver' in myOptDict:
+        myAxis=1 #Doing it on the y part
+        myOSAverages = getOverscanAverages(overScanList, myAxis)
+        croppedArrLists = [simpleOSSub(croppedArrLists,\
+                                       myOSAverages,\
+                                       myMaskArr, myAxis)]
+    return croppedArrLists
+
+    
 def getOverscanAverages(overScanList, myAxis):
     """Returns the average overscan values with respect to the columns or
 rows"""
@@ -928,18 +944,22 @@ def main(argv):
         return 0
 
     if '--pDist' in myOptDict:
-        #Just in case --upperB wasn't used
-        myMaskArr=np.ones(croppedArrLists[0].shape)
-        print("croppedArrLists[0].shape = ",croppedArrLists[0].shape)
-        if '--upperB' in myOptDict:
-            myMaskArr,croppedArrLists = getMaskArrAndSum(croppedArrLists,\
-                                               myOptDict)
-        if '--sOver' in myOptDict:
-            myAxis=1 #Doing it on the y part
-            myOSAverages = getOverscanAverages(overScanList, myAxis)
-            croppedArrLists = [simpleOSSub(croppedArrLists,\
-                                           myOSAverages,\
-                                           myMaskArr, myAxis)]
+        # #Just in case --upperB wasn't used
+        # myMaskArr=np.ones(croppedArrLists[0].shape)
+        # if '--upperB' in myOptDict:
+        #     myMaskArr,croppedArrLists = getMaskArrAndSum(croppedArrLists,\
+        #                                        myOptDict)
+        # if '--sOver' in myOptDict:
+        #     myAxis=1 #Doing it on the y part
+        #     myOSAverages = getOverscanAverages(overScanList, myAxis)
+        #     croppedArrLists = [simpleOSSub(croppedArrLists,\
+        #                                    myOSAverages,\
+        #                                    myMaskArr, myAxis)]
+        myAxis=1 #--yAve case, rewrite this part later
+        croppedArrLists = getProcessedCroppedArrLists(croppedArrLists,\
+                                                      overScanList,\
+                                                      myOptDict,\
+                                                      myAxis)
         newFlatLists=[e.flatten() for e in croppedArrLists]
 
         myKey='--yAve'
