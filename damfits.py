@@ -928,15 +928,18 @@ def main(argv):
         return 0
 
     if '--pDist' in myOptDict:
+        #Just in case --upperB wasn't used
+        myMaskArr=np.ones(croppedArrLists[0].shape)
+        print("croppedArrLists[0].shape = ",croppedArrLists[0].shape)
         if '--upperB' in myOptDict:
             myMaskArr,croppedArrLists = getMaskArrAndSum(croppedArrLists,\
                                                myOptDict)
-            if '--sOver' in myOptDict:
-                myAxis=1 #Doing it on the y part
-                myOSAverages = getOverscanAverages(overScanList, myAxis)
-                croppedArrLists = [simpleOSSub(croppedArrLists,\
-                                     myOSAverages,\
-                                     myMaskArr, myAxis)]
+        if '--sOver' in myOptDict:
+            myAxis=1 #Doing it on the y part
+            myOSAverages = getOverscanAverages(overScanList, myAxis)
+            croppedArrLists = [simpleOSSub(croppedArrLists,\
+                                           myOSAverages,\
+                                           myMaskArr, myAxis)]
         newFlatLists=[e.flatten() for e in croppedArrLists]
 
         myKey='--yAve'
@@ -944,6 +947,8 @@ def main(argv):
         flatFlatArr=newFlatLists[0]
         for i in range(1,len(newFlatLists)):
             flatFlatArr=np.append(flatFlatArr,newFlatLists[i])
+        #Important to make the flatFlatArr an integer array specially
+        #if there were any floating point operations.
         uV,fC=getFreqCount(flatFlatArr.astype(int))
         # p0 my initial guess for the fitting coefficients (A, mu and sigma)
         if '--noPlot' not in myOptDict:
