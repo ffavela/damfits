@@ -944,7 +944,7 @@ def main(argv):
         flatFlatArr=newFlatLists[0]
         for i in range(1,len(newFlatLists)):
             flatFlatArr=np.append(flatFlatArr,newFlatLists[i])
-        uV,fC=getFreqCount(flatFlatArr)
+        uV,fC=getFreqCount(flatFlatArr.astype(int))
         # p0 my initial guess for the fitting coefficients (A, mu and sigma)
         if '--noPlot' not in myOptDict:
             plt.xlabel("pixel value")
