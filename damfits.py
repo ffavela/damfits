@@ -541,9 +541,7 @@ def getMaskArrAndSum(list4NumpyStuff, myOptDict):
     mySum=np.zeros(list4NumpyStuff[0].shape)
     myMaskArr=[]
     uppBInt=myOptDict['uppBInt']
-    print("uppBInt = ", uppBInt)
     for i in range(len(list4NumpyStuff)):
-        print("i = ", i)
         myMaskArr.append(list4NumpyStuff[i]<=uppBInt)
         try:
             mySum+=list4NumpyStuff[i]*myMaskArr[i]
@@ -557,12 +555,12 @@ def simpleOSSub(myArray,myOSAverages,\
     """Returns the overscan subtracted array"""
     #Getting the average of the masks
     myMaskAve=sum(myMaskArr)/len(myMaskArr)
-
     if myAxis == 1: #'--yAve'
         #Doing 1d transpose
         subArr=myArray-myMaskAve*myOSAverages[:, np.newaxis]
     else:
         subArr=myArray-myMaskAve*myOSAverages
+
     return subArr
 
 def getOverscanAverages(overScanList, myAxis):
@@ -931,16 +929,18 @@ def main(argv):
 
     if '--pDist' in myOptDict:
         if '--upperB' in myOptDict:
-            print("Doing masking part")
             myMaskArr,croppedArrLists = getMaskArrAndSum(croppedArrLists,\
                                                myOptDict)
+            if '--sOver' in myOptDict:
+                myAxis=1 #Doing it on the y part
+                myOSAverages = getOverscanAverages(overScanList, myAxis)
+                croppedArrLists = [simpleOSSub(croppedArrLists,\
+                                     myOSAverages,\
+                                     myMaskArr, myAxis)]
         newFlatLists=[e.flatten() for e in croppedArrLists]
+
         myKey='--yAve'
-        # print("overScanList = ",overScanList)
-        # print('croppedArrLists = ',croppedArrLists)
-        # myAverageL=getAverageList(croppedArrLists, myKey, myOptDict,overScanList)
-        # print('myAverageL = ',myAverageL)
-        # newFlatLists=[e.flatten() for e in myAverageL]
+
         flatFlatArr=newFlatLists[0]
         for i in range(1,len(newFlatLists)):
             flatFlatArr=np.append(flatFlatArr,newFlatLists[i])
