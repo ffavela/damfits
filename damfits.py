@@ -944,17 +944,6 @@ def main(argv):
         return 0
 
     if '--pDist' in myOptDict:
-        # #Just in case --upperB wasn't used
-        # myMaskArr=np.ones(croppedArrLists[0].shape)
-        # if '--upperB' in myOptDict:
-        #     myMaskArr,croppedArrLists = getMaskArrAndSum(croppedArrLists,\
-        #                                        myOptDict)
-        # if '--sOver' in myOptDict:
-        #     myAxis=1 #Doing it on the y part
-        #     myOSAverages = getOverscanAverages(overScanList, myAxis)
-        #     croppedArrLists = [simpleOSSub(croppedArrLists,\
-        #                                    myOSAverages,\
-        #                                    myMaskArr, myAxis)]
         myAxis=1 #--yAve case, rewrite this part later
         croppedArrLists = getProcessedCroppedArrLists(croppedArrLists,\
                                                       overScanList,\
@@ -979,6 +968,10 @@ def main(argv):
             if not '--noLog' in myOptDict:
                 plt.yscale('log', nonposy='clip')
         if '--r2' in myOptDict:
+            croppedArrLists2=getProcessedCroppedArrLists(croppedArrLists2,\
+                                                      overScanList,\
+                                                      myOptDict,\
+                                                      myAxis)
             newFlatLists2=[e.flatten() for e in croppedArrLists2]
             flatFlatArr2=newFlatLists2[0]
             for i in range(1,len(newFlatLists2)):
