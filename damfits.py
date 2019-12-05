@@ -21,7 +21,7 @@ accOpts=['-h','--help','--header',\
          '--save2Pdf','--range','-i','--pDist',\
          '--r2','--gFit','-p',\
          '-i', '-b','--side','--noLog',\
-         '--color', '--newFit']
+         '--color', '--conv1']
 
 #A consistency dictionary
 cDict={'--help':[], '--header':[],\
@@ -30,7 +30,7 @@ cDict={'--help':[], '--header':[],\
                        '--pDist','--r2','--gFit',\
                        '--noLog','--noPlot',\
                        '--upperB','--sOver','--save2Pdf',\
-                       '--newFit'],\
+                       '--conv1'],\
        '--xAve': ['-r','--rectangle','-i',\
                   '--dump','--upperB','--sOver',\
                   '--save2Pdf','--range'],\
@@ -38,7 +38,8 @@ cDict={'--help':[], '--header':[],\
                    '--dump','--upperB','--xAve',\
                    # '--yAve','--save2Pdf','--range'],\
                    '--yAve','--save2Pdf','--range',\
-                   '--pDist','--gFit'],\
+                   '--pDist','--gFit', '--conv1',\
+                   '--noPlot', '--noLog'],\
        '--pVal': ['-i','--save2Pdf'],\
        '-p': ['-i','-d','--side','--noLog','--color']}
 
@@ -166,7 +167,7 @@ def simpleConv(x, A, mu, sig, lamb_d, maxK=20):
     mySumArr=np.float64(np.zeros_like(x))
     # fS="/home/frank/mess/damic/karthicFiles/fanoRed.tsv"
     for k in range(maxK):
-        mySumArr+=np.float64(poisson(k,lamb_d)*gaussian(x,A,mu,sig+k))
+        mySumArr+=np.float64(poisson(k,lamb_d)*gaussian(x,A,mu+k,sig))
         # mySumArr+=poisson(k,lamb_d)*gaussian(x,A,mu,sig+k)
         # n = np.subtract(yn, self.y_mean, out=yn, casting="unsafe")
         # mySumArr = np.add(mySumArr, poisson(k,lamb_d)*gaussian(x,A,mu,sig+k),\
@@ -297,7 +298,7 @@ def printHelp(argv):
     print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot [--save2Pdf file.pdf]] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--upperB upperBound] [--dump | --save2Pdf file.pdf] [--sOver] file0.fits [file1.fits ...] #plots the average pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist [--gFit] [--noPlot | --save2Pdf file.pdf] file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist [--gFit | --conv1] [--noPlot | --save2Pdf file.pdf]  [--sOver] [--upperB upperBound] file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
     print("%s --pValue xVal yVal [-i iNum] file0.fits [file1.fits ...] #prints the pixel value\n" %(basename(argv[0])))
     # print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     # print("extraOptions:\n")
@@ -1004,8 +1005,7 @@ def main(argv):
                                                      mean-mean2,\
                                                      sigma-sigma2))
 
-        if '--newFit' in myOptDict:
-            print("Inside the new fitting function")
+        if '--conv1' in myOptDict:
             # return 10
             print("#rect\tA\tmean\tsigma\tlambda")
             myMaxIdx=np.argmax(fC)#locating the index
