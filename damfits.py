@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 
 #Ignoring numpy errors (usually they com from the curve_fit function)
-# np.seterr(all='ignore') #Uncomment for debugging
+np.seterr(all='ignore') #Uncomment for debugging
 
 #After the -p option are the extra options, just be careful with that
 #-i b4 -p, it's useful outside too
@@ -24,7 +24,8 @@ accOpts=['-h','--help','--header',\
          '--save2Pdf','--range','-i','--pDist',\
          '--r2','--gFit','-p',\
          '-i', '-b','--side','--noLog',\
-         '--color', '--conv1', '-c']
+         '--color', '--conv1', '-c',\
+         '--sigmaB']
 
 #A consistency dictionary
 cDict={'--help':[], '--header':[],\
@@ -33,17 +34,23 @@ cDict={'--help':[], '--header':[],\
                        '--pDist','--r2','--gFit',\
                        '--noLog','--noPlot',\
                        '--upperB','--sOver','--save2Pdf',\
-                       '--conv1','-c'],\
+                       '--conv1','-c','--sigmaB'],\
        '--xAve': ['-r','--rectangle','-i',\
                   '--dump','--upperB','--sOver',\
-                  '--save2Pdf','--range','-c'],\
+                  '--save2Pdf','--range','-c','--sigmaB'],\
        '--sOver': ['-r','--rectangle','-i',\
                    '--dump','--upperB','--xAve',\
                    # '--yAve','--save2Pdf','--range'],\
                    '--yAve','--save2Pdf','--range',\
                    '--pDist','--gFit', '--conv1',\
-                   '--noPlot', '--noLog','-c'],\
-       '--pVal': ['-i','--save2Pdf','-c'],\
+                   '--noPlot', '--noLog','-c','--sigmaB'],\
+       '--pVal': ['-i','--save2Pdf'],\
+       '--sigmaB': ['-i', '--xPlot','--rectangle',\
+                       '--dump','--xAve','--yAve',\
+                       '--pDist','--r2','--gFit',\
+                       '--noLog','--noPlot',\
+                       '--sOver','--save2Pdf',\
+                       '--conv1','-c'],\
        '-p': ['-i','-d','--side','--noLog','--color']}
 
 #For the equivalent expressions
@@ -53,6 +60,25 @@ cDict['--yAve']=cDict['--xAve']
 for cVal in cDict:
     cDict[cVal].append(cVal)
     cDict[cVal].append('fitsFiles')
+
+
+def getUppIntL(sigmaBVal,myImportantList):
+    uppIntL=[]
+
+    for e in myImportantList:
+        uV,fC=getFreqCount(e.astype(int))
+        myMaxIdx=np.argmax(fC)#locating the index
+        myMaxV=uV[myMaxIdx]#guess for the mean
+        myMaxC=fC[myMaxIdx]#guess for A
+        mySigma=100#find better estimate
+        popt,pcov = curve_fit(gauss,uV,fC,p0=[myMaxC, myMaxV, mySigma])
+        A,mean,sigma=popt
+        uppIntV=int(mean+sigmaBVal*sigma)
+        uppIntL.append(uppIntV)
+
+    return uppIntL
+
+
 
 def is_float(n):
     try:
@@ -311,8 +337,8 @@ def printHelp(argv):
     print("%s file0.fits [file1.fits ...] #displays fits file info\n" %(basename(argv[0])))
     print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot [--save2Pdf file.pdf]] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--upperB upperBound] [--dump | --save2Pdf file.pdf] [--sOver] [-c calConst] file0.fits [file1.fits ...] #plots the average pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist [--gFit | --conv1] [--noPlot | --save2Pdf file.pdf]  [--sOver] [--upperB upperBound] [-c calConst] file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--upperB upperBound | --sigmaB sigmaV] [--dump | --save2Pdf file.pdf] [--sOver] [-c calConst] file0.fits [file1.fits ...] #plots the average pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist [--gFit | --conv1] [--noPlot | --save2Pdf file.pdf]  [--sOver] [--upperB upperBound | --sigmaB sigmaV] [-c calConst] file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
     print("%s --pValue xVal yVal [-i iNum] file0.fits [file1.fits ...] #prints the pixel value\n" %(basename(argv[0])))
     # print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     # print("extraOptions:\n")
@@ -556,8 +582,10 @@ def getOverscanRectangle(rList,hdu_list,xTraCheck,marginD=0):
 def getMaskArrAndSum(list4NumpyStuff, myOptDict):
     mySum=np.zeros(list4NumpyStuff[0].shape)
     myMaskArr=[]
-    uppBInt=myOptDict['uppBInt']
-    for i in range(len(list4NumpyStuff)):
+    # uppBInt=myOptDict['uppBInt']
+    uppIntL=myOptDict['uppIntL']
+
+    for i,uppBInt in zip(range(len(list4NumpyStuff)),uppIntL):
         myMaskArr.append(list4NumpyStuff[i]<=uppBInt)
         try:
             mySum+=list4NumpyStuff[i]*myMaskArr[i]
@@ -583,7 +611,8 @@ def getProcessedCroppedArrLists(croppedArrLists, overScanList,\
                                 myOptDict,myAxis):
     #Just in case --upperB wasn't used
     myMaskArr=np.ones(croppedArrLists[0].shape)
-    if '--upperB' in myOptDict:
+
+    if '--upperB' in myOptDict or 'uppIntL' in myOptDict:
         myMaskArr,croppedArrLists = getMaskArrAndSum(croppedArrLists,\
                                                      myOptDict)
     if '--sOver' in myOptDict:
@@ -825,7 +854,6 @@ def main(argv):
         return 8
 
     if '-c' in myOptDict:
-        print("Using the -c option")
         calConstIdx=myOptDict['-c']
         if len(calConstIdx) < 1:
             print("error: -c option cannot be left empty")
@@ -835,8 +863,17 @@ def main(argv):
             return 663
         calConst=float(argv[calConstIdx[0]])
         myOptDict['-cFloatVal']=calConst
-        print("The calibration constant is ",calConst)
 
+    if '--sigmaB' in myOptDict:
+        sigmaBIdx=myOptDict['--sigmaB']
+        if len(sigmaBIdx) < 1:
+            print("error: --sigmaB option cannot be left empty")
+            return 666
+        if not is_float(argv[sigmaBIdx[0]]):
+            print("error: --sigmaB option needs a float argument")
+            return 667
+        sigmaBVal=float(argv[sigmaBIdx[0]])
+        myOptDict['-sigmaBFloat']=sigmaBVal
 
     list4NumpyStuff=[]#for getting the numpy stuff in case they exist.
     croppedArrLists=[]
@@ -940,8 +977,23 @@ def main(argv):
             plt.savefig(myPdfFile, bbox_inches='tight')
         return 0
 
-    # if '--sigma' in myOptDict:
-    #     print("Sigma option being used!")
+    if 'uppBInt' in myOptDict:
+        uppInt=myOptDict['uppBInt']
+        #Just simplifying masking process when looping.
+        uppIntL=[uppInt for dummy in fitsFIdxs]
+        #If a mapping is done make sure it's though this list.
+        myOptDict["uppIntL"]=uppIntL
+
+    if '--sigmaB' in myOptDict:
+        sigmaBVal=myOptDict["-sigmaBFloat"]
+        if len(croppedArrLists) == 0:
+            #Maybe should remove this part, I think it never enters...
+            uppIntL=getUppIntL(sigmaBVal, list4NumpyStuff)
+        else:
+            #Maybe leave only this part?...
+            uppIntL=getUppIntL(sigmaBVal, croppedArrLists)
+
+        myOptDict["uppIntL"]=uppIntL
 
     if '--xAve' in myOptDict or '--yAve' in myOptDict:
         myKey='--xAve'
