@@ -10,6 +10,9 @@ from scipy.special import factorial
 import matplotlib.pyplot as plt
 from astropy.io import fits
 
+#Ignoring numpy errors (usually they com from the curve_fit function)
+# np.seterr(all='ignore') #Uncomment for debugging
+
 #After the -p option are the extra options, just be careful with that
 #-i b4 -p, it's useful outside too
 accOpts=['-h','--help','--header',\
@@ -21,7 +24,7 @@ accOpts=['-h','--help','--header',\
          '--save2Pdf','--range','-i','--pDist',\
          '--r2','--gFit','-p',\
          '-i', '-b','--side','--noLog',\
-         '--color', '--conv1']
+         '--color', '--conv1', '-c']
 
 #A consistency dictionary
 cDict={'--help':[], '--header':[],\
@@ -30,17 +33,17 @@ cDict={'--help':[], '--header':[],\
                        '--pDist','--r2','--gFit',\
                        '--noLog','--noPlot',\
                        '--upperB','--sOver','--save2Pdf',\
-                       '--conv1'],\
+                       '--conv1','-c'],\
        '--xAve': ['-r','--rectangle','-i',\
                   '--dump','--upperB','--sOver',\
-                  '--save2Pdf','--range'],\
+                  '--save2Pdf','--range','-c'],\
        '--sOver': ['-r','--rectangle','-i',\
                    '--dump','--upperB','--xAve',\
                    # '--yAve','--save2Pdf','--range'],\
                    '--yAve','--save2Pdf','--range',\
                    '--pDist','--gFit', '--conv1',\
-                   '--noPlot', '--noLog'],\
-       '--pVal': ['-i','--save2Pdf'],\
+                   '--noPlot', '--noLog','-c'],\
+       '--pVal': ['-i','--save2Pdf','-c'],\
        '-p': ['-i','-d','--side','--noLog','--color']}
 
 #For the equivalent expressions
@@ -50,6 +53,14 @@ cDict['--yAve']=cDict['--xAve']
 for cVal in cDict:
     cDict[cVal].append(cVal)
     cDict[cVal].append('fitsFiles')
+
+def is_float(n):
+    try:
+        float_n = float(n)
+    except ValueError:
+        return False
+    else:
+        return True
 
 def getXYAveTag(myOptDict):
     if '--xAve' in myOptDict:
@@ -154,7 +165,7 @@ def gauss(x, *p):
     A,mu,sigma = p
     return A*np.exp(-(x-mu)**2/(2.*sigma**2))
 
-#### for doinf some convolution fitting ####
+#### for doing some convolution fitting ####
 def gaussian(x, *p):
     A,mu,sig = p
     return A*np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
@@ -163,11 +174,11 @@ def poisson(*q):
     k,lamb=q
     return (lamb**k/factorial(k)) * np.exp(-lamb)
 
-def simpleConv(x, A, mu, sig, lamb_d, maxK=20):
+def simpleConv(x, A, mu, sig, lamb_d, b=1, maxK=20):
     mySumArr=np.float64(np.zeros_like(x))
     # fS="/home/frank/mess/damic/karthicFiles/fanoRed.tsv"
     for k in range(maxK):
-        mySumArr+=np.float64(poisson(k,lamb_d)*gaussian(x,A,mu+k,sig))
+        mySumArr+=np.float64(poisson(k,lamb_d)*gaussian(x,A,mu+b*k,sig))
         # mySumArr+=poisson(k,lamb_d)*gaussian(x,A,mu,sig+k)
         # n = np.subtract(yn, self.y_mean, out=yn, casting="unsafe")
         # mySumArr = np.add(mySumArr, poisson(k,lamb_d)*gaussian(x,A,mu,sig+k),\
@@ -248,7 +259,9 @@ def getRectangleList(myOptDict,argv):
     rectangleList=[int(argv[rVal]) for rVal in myOptDict['--rectangle'][0:4]]
     return rectangleList
 
+
 def handleSubCases(hdu_list, myOptDict, argv):
+    #This function is deprecated
     iNum=1 #Which image to plot
     bining=300 #default bining
     logB=True #log y
@@ -281,6 +294,7 @@ def handleSubCases(hdu_list, myOptDict, argv):
 
     iNum=1
     if "-i" in myOptDict:
+        # print("Inside the -i part handling")
         #The image number
         iNumStr=argv[myOptDict["-i"][0]]
         if not handleMinusI(iNumStr,hdu_list):
@@ -297,8 +311,8 @@ def printHelp(argv):
     print("%s file0.fits [file1.fits ...] #displays fits file info\n" %(basename(argv[0])))
     print("%s --header number file0.fits [file1.fits ...] #displays fits header info\n" %(basename(argv[0])))
     print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] [--xPlot [--save2Pdf file.pdf]] file0.fits [file1.fits ...] #prints average pixel value in rectangle region (improve this...)\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--upperB upperBound] [--dump | --save2Pdf file.pdf] [--sOver] file0.fits [file1.fits ...] #plots the average pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
-    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist [--gFit | --conv1] [--noPlot | --save2Pdf file.pdf]  [--sOver] [--upperB upperBound] file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [-i iNum] (--xAve|--yAve) [--upperB upperBound] [--dump | --save2Pdf file.pdf] [--sOver] [-c calConst] file0.fits [file1.fits ...] #plots the average pixel values along axes, if dump is used then it prints the values\n" %(basename(argv[0])))
+    print("%s (-r|--rectangle) xMin xMax yMin yMax [--r2 xMin2 xMax2 yMin2 yMax2] [-i iNum] --pDist [--gFit | --conv1] [--noPlot | --save2Pdf file.pdf]  [--sOver] [--upperB upperBound] [-c calConst] file0.fits [file1.fits ...] #plots the pixel distribution values\n" %(basename(argv[0])))
     print("%s --pValue xVal yVal [-i iNum] file0.fits [file1.fits ...] #prints the pixel value\n" %(basename(argv[0])))
     # print("%s -p [extraOptions] file.fits #plots \n" %(basename(argv[0])))
     # print("extraOptions:\n")
@@ -427,6 +441,7 @@ def oSRH(argv,hdu_list,myOptDict,fitsFileIdx,marginD=0):
         myOptDict['--sOver']=oSRect
     iNum=1
     if '-i' in myOptDict:
+        # print("Inside the -i handling 2")
         iNumStr=argv[myOptDict["-i"][0]]
         if not handleMinusI(iNumStr,hdu_list):
             return 990
@@ -579,7 +594,7 @@ def getProcessedCroppedArrLists(croppedArrLists, overScanList,\
                                        myMaskArr, myAxis)]
     return croppedArrLists
 
-    
+
 def getOverscanAverages(overScanList, myAxis):
     """Returns the average overscan values with respect to the columns or
 rows"""
@@ -803,9 +818,25 @@ def main(argv):
             print("error: -i option needs an integer")
             return 662
         iNum=int(argv[ccdNumLIdx[0]])
+
+
     if not checkOptConsistency(myOptDict):
         print("Check help for proper syntax")
         return 8
+
+    if '-c' in myOptDict:
+        print("Using the -c option")
+        calConstIdx=myOptDict['-c']
+        if len(calConstIdx) < 1:
+            print("error: -c option cannot be left empty")
+            return 661
+        if not is_float(argv[calConstIdx[0]]):
+            print("error: -c option needs a float argument")
+            return 663
+        calConst=float(argv[calConstIdx[0]])
+        myOptDict['-cFloatVal']=calConst
+        print("The calibration constant is ",calConst)
+
 
     list4NumpyStuff=[]#for getting the numpy stuff in case they exist.
     croppedArrLists=[]
@@ -908,6 +939,9 @@ def main(argv):
         else:
             plt.savefig(myPdfFile, bbox_inches='tight')
         return 0
+
+    # if '--sigma' in myOptDict:
+    #     print("Sigma option being used!")
 
     if '--xAve' in myOptDict or '--yAve' in myOptDict:
         myKey='--xAve'
@@ -1012,11 +1046,20 @@ def main(argv):
             myMaxV=uV[myMaxIdx]#guess for the mean
             myMaxC=fC[myMaxIdx]#guess for A
             mySigma=20#find better estimate
-            lamb_d=2 #Find a better way to do this!
+            lamb_d=2.1 #Find a better way to do this!
             lamb=4.3 #Find a better way to do this!
-            popt,pcov = curve_fit(simpleConv,uV,fC,p0=[myMaxC, myMaxV, mySigma,lamb_d])
+            b=4.2
+            b=1 #The default value
+            if '-cFloatVal' in myOptDict:
+                b=myOptDict['-cFloatVal']
+            #Doing the fitting but leaving b constant
+            myConv = lambda x, A, mu, sig, lamb_d:\
+                simpleConv(x, A, mu, sig, lamb_d, b)
+            popt,pcov = curve_fit(myConv,\
+                                  uV,fC,\
+                                  p0=[myMaxC, myMaxV, mySigma,lamb_d])
             if '--noPlot' not in myOptDict:
-                plt.plot(uV,simpleConv(uV,*popt),label='fit')
+                plt.plot(uV,myConv(uV,*popt),label='fit')
             A,mean,sigma,lamb_d=popt
             print("r1\t%0.2f\t%0.2f\t%0.2f\t%0.2f" %(A,mean,sigma,lamb_d))
 
