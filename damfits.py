@@ -255,7 +255,7 @@ def getMyOptDict(myArgs):
             tmpOpt=e
             continue #Just skipping the option
 
-        if e.endswith('.fits'):
+        if e.endswith('.fits') or e.endswith('.fits.fz'):
             myOptDict['fitsFiles'].append(i)
             #Assuming that if a fits file is found then whatever
             #option was used has finished receiving it's arguments.
