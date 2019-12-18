@@ -881,8 +881,11 @@ def main(argv):
     overScanList=[]
     #Looping through all the fits file indeces given though the
     #command line
+    idxCounter=0
     for fitsIdx in fitsFIdxs:
+        idxCounter+=1
         # myFitsF=argv[fitsFIdxs[-1]]
+        # print("fitsIdx = ",fitsIdx)
         myFitsF=argv[fitsIdx]
         if not os.path.isfile(myFitsF):
             print("error: "+myFitsF+" is not a file.")
@@ -1045,6 +1048,9 @@ def main(argv):
             flatFlatArr=np.append(flatFlatArr,newFlatLists[i])
         #Important to make the flatFlatArr an integer array specially
         #if there were any floating point operations.
+        # print(len(flatFlatArr.astype(int)))
+        # print(flatFlatArr.astype(int))
+        # print(len(croppedArrLists))
         uV,fC=getFreqCount(flatFlatArr.astype(int))
         # p0 my initial guess for the fitting coefficients (A, mu and sigma)
         if '--noPlot' not in myOptDict:
