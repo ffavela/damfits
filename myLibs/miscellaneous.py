@@ -1,4 +1,5 @@
 from myLibs.parsing import *
+from os.path import basename #For printing nicely argv[0]
 
 def is_float(n):
     try:
