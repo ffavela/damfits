@@ -1,6 +1,6 @@
 import numpy as np
 from myLibs.miscellaneous import *
-
+import matplotlib.pyplot as plt
 
 def getMaskArrAndSum(list4NumpyStuff, myOptDict):
     mySum=np.zeros(list4NumpyStuff[0].shape)
