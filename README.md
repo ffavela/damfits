@@ -19,6 +19,9 @@ damfits [-h|--help]
 
 damfits file.fits #displays fits file info
 
+
+THIS SHOULD BE UPDATED!
+
 damfits -p [extraOptions] file.fits #plots
 
 extraOptions:
@@ -71,3 +74,10 @@ No.    Name      Ver    Type      Cards   Dimensions   Format
 
 
 Try it out and post suggestions and comments.
+
+
+Some example scripts:
+
+damDistBounds.sh:  https://gist.github.com/ffavela/8de0e7878e253cb764ae2e043448a680
+
+damScript1.sh:   https://gist.github.com/ffavela/639aec4064ba52d125084e3a85669095
